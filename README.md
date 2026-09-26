@@ -78,7 +78,7 @@ All numbers come from raw n8n execution records and the deployed apps, not from 
 | Frontend mocks in the developer output | 23 of 24 runs | **0 of 31** runs since the prompt change |
 | QA completion tokens per run (median) | 4,684 | **403 (−91 %)**; QA step 27.8 s → 8.9 s |
 | Run time after "GO" (median) | 122.5 s | 96.5 s → 74.5 s → **66.5 s** |
-| Regression sets (5 fixed app requests × 2) | – | 3 × **10/10** healthy deployments after each larger change, plus a 13/13 control run for the mock scan |
+| Regression sets (5 fixed app requests × 2) | – | 3 × **10/10** healthy deployments after each larger change, plus one live control run for the mock scan (13/13 checks in the raw record) |
 
 Note on run time: the 122.5 s baseline is the median of 16 earlier runs with different apps; the later values are medians
 of the fixed regression set. They show the trend, not an exact A/B comparison.
@@ -123,6 +123,10 @@ To import the workflow into your own n8n: create credentials for Gemini, SSH (do
 `<DOCKER_HOST>`, `<N8N_HOST>` and `<GITHUB_OWNER>` in the `Config` node, and select your credentials in the nodes marked
 `REPLACE_WITH_YOUR_CREDENTIAL_ID`. Code comments and some prompts are in German (the project language).
 
+**Security note:** the chat trigger is set to `public: true`. Anyone who can reach its URL can start builds that deploy
+containers and create GitHub repositories. Run it only inside a protected network, or add authentication in front of it
+before exposing it to the internet.
+
 ## Limitations / known gaps
 
 - The health check only tests `/`: broken API routes or JavaScript errors in the browser are not caught.
@@ -134,6 +138,7 @@ To import the workflow into your own n8n: create credentials for Gemini, SSH (do
 - The repair retry for unreadable QA output is proven in isolation only; it never triggered in a live run.
 - A failed health check is reported, not yet fed back into the bugfix loop.
 - Generated apps are meant for a private LAN: no authentication, no HTTPS.
+- LLM outputs are non-deterministic; the 10-run regression sets show trends, not guarantees.
 
 ## Author
 

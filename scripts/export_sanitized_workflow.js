@@ -52,6 +52,15 @@ function sanitize(get) {
   if (!cfg) throw new Error('Config-Node fehlt');
   let code = cfg.parameters.jsCode;
   code = code.replace(/(docker_srv_ip:\s*)"[^"]*"/, `$1"${PLACEHOLDER.docker_host}"`).replace(/(n8n_host_ip:\s*)"[^"]*"/, `$1"${PLACEHOLDER.n8n_host}"`).replace(/(github_owner:\s*)"[^"]*"/, `$1"${PLACEHOLDER.github_owner}"`);
+  // veralteten Planungskommentar (Stand vor der Verdrahtung, Verweis auf interne Notizen) durch den heutigen Stand ersetzen
+  const OLD_CFG_COMMENT = '// Zentrale Werte fuer Punkt 2 (Tiefenanalyse Config-Zentralisierung). NOCH NICHT eingehaengt.\n' +
+    '// docker_srv_ip ersetzt spaeter den Hardcode in Format_Success_Response (appUrl), NICHT Build_Command_Builder (dort steht keine IP).\n' +
+    '// github_owner ersetzt spaeter owner.value in GitHub_Push_Files.\n' +
+    '// n8n_host_ip ist aktuell in keinem Node hartkodiert -- nur zu Dokumentationszwecken mitgefuehrt (Infrastruktur laut CLAUDE.md).\n';
+  const NEW_CFG_COMMENT = '// Zentrale Werte: docker_srv_ip nutzt Format_Success_Response (Live-Link), github_owner nutzt GitHub_Push_Files.\n' +
+    '// n8n_host_ip wird von keinem Node gelesen (nur Dokumentation).\n';
+  if (!code.startsWith(OLD_CFG_COMMENT)) throw new Error('Config-Node: Kommentar weicht vom erwarteten Stand ab – Sanitizer prüfen');
+  code = NEW_CFG_COMMENT + code.slice(OLD_CFG_COMMENT.length);
   cfg.parameters.jsCode = code;
 
   // 5. Abschlussprüfung (fail-closed): keine Original-Kennung, kein verbotenes Muster

@@ -640,7 +640,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Zentrale Werte fuer Punkt 2 (Tiefenanalyse Config-Zentralisierung). NOCH NICHT eingehaengt.\n// docker_srv_ip ersetzt spaeter den Hardcode in Format_Success_Response (appUrl), NICHT Build_Command_Builder (dort steht keine IP).\n// github_owner ersetzt spaeter owner.value in GitHub_Push_Files.\n// n8n_host_ip ist aktuell in keinem Node hartkodiert -- nur zu Dokumentationszwecken mitgefuehrt (Infrastruktur laut CLAUDE.md).\nreturn [{\n  json: {\n    docker_srv_ip: \"<DOCKER_HOST>\",\n    n8n_host_ip: \"<N8N_HOST>\",\n    github_owner: \"<GITHUB_OWNER>\"\n  }\n}];"
+        "jsCode": "// Zentrale Werte: docker_srv_ip nutzt Format_Success_Response (Live-Link), github_owner nutzt GitHub_Push_Files.\n// n8n_host_ip wird von keinem Node gelesen (nur Dokumentation).\nreturn [{\n  json: {\n    docker_srv_ip: \"<DOCKER_HOST>\",\n    n8n_host_ip: \"<N8N_HOST>\",\n    github_owner: \"<GITHUB_OWNER>\"\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
