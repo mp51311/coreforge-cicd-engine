@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Münzwurf - Digitaler Münzwurf</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            gold: {
+              400: '#facc15',
+              500: '#eab308',
+              600: '#ca8a04',
+              700: '#a16207'
+            },
+            silver: {
+              300: '#cbd5e1',
+              400: '#94a3b8',
+              500: '#64748b'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    .perspective-1000 {
+      perspective: 1000px;
+    }
+    .transform-style-3d {
+      transform-style: preserve-3d;
+    }
+    .backface-hidden {
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+    .rotate-y-180 {
+      transform: rotateY(180deg);
+    }
+    
+    @keyframes flipAnimationKopf {
+      0% { transform: rotateY(0deg) scale(1) translateY(0); }
+      40% { transform: rotateY(1080deg) scale(1.35) translateY(-60px); }
+      100% { transform: rotateY(2160deg) scale(1) translateY(0); }
+    }
+    
+    @keyframes flipAnimationZahl {
+      0% { transform: rotateY(0deg) scale(1) translateY(0); }
+      40% { transform: rotateY(1080deg) scale(1.35) translateY(-60px); }
+      100% { transform: rotateY(2340deg) scale(1) translateY(0); }
+    }
+
+    .animate-flip-kopf {
+      animation: flipAnimationKopf 1.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    }
+
+    .animate-flip-zahl {
+      animation: flipAnimationZahl 1.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    }
+
+    .coin-shadow {
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex items-center justify-center p-4 selection:bg-amber-500 selection:text-slate-950">
+
+  <!-- Mock API Worker Intercept -->
+  <script>
+    // Intercept /api/flip calls to provide local fallback if no backend is attached
+    const originalFetch = window.fetch;
+    window.fetch = async function(...args) {
+      const [url] = args;
+      if (typeof url === 'string' && url.includes('/api/flip')) {
+        // Simulate subtle network latency (150ms - 300ms)
+        await new Promise(res => setTimeout(res, 150 + Math.random() * 150));
+        const result = Math.random() < 0.5 ? 'Kopf' : 'Zahl';
+        return new Response(JSON.stringify({ result }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      return originalFetch.apply(this, args);
+    };
+  </script>
+
+  <main class="w-full max-w-md flex flex-col gap-5">
+    
+    <!-- Header & Status Bar -->
+    <div class="flex items-center justify-between px-2">
+      <div class="flex items-center gap-2">
+        <div class="p-2 bg-amber-500/10 rounded-xl border border-amber-500/20 text-amber-400">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+        <h1 class="text-xl font-bold tracking-tight text-slate-100">Münzwurf</h1>
+      </div>
+
+      <!-- API Status Indicator -->
+      <div id="statusIndicator" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs text-slate-400 transition-all duration-300">
+        <span id="statusDot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span id="statusText" class="font-medium">Bereit</span>
+      </div>
+    </div>
+
+    <!-- Main Card Container -->
+    <div class="bg-slate-900/90 backdrop-blur-md rounded-3xl border border-slate-800/80 p-6 shadow-2xl flex flex-col items-center gap-6 relative overflow-hidden">
+      
+      <!-- Background Glow Effect -->
+      <div class="absolute -top-24 -left-24 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      <!-- Optional Prediction Selection -->
+      <div class="w-full flex flex-col gap-2 items-center">
+        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Deine Vorhersage (optional)</span>
+        <div class="grid grid-cols-3 gap-2 w-full max-w-xs bg-slate-950/60 p-1 rounded-2xl border border-slate-800/60 text-xs font-medium">
+          <button type="button" onclick="selectPrediction('none')" id="pred-none" class="py-1.5 rounded-xl transition-all text-amber-400 bg-slate-800 border border-slate-700/50 shadow-sm">Egal</button>
+          <button type="button" onclick="selectPrediction('Kopf')" id="pred-Kopf" class="py-1.5 rounded-xl transition-all text-slate-400 hover:text-slate-200">Kopf</button>
+          <button type="button" onclick="selectPrediction('Zahl')" id="pred-Zahl" class="py-1.5 rounded-xl transition-all text-slate-400 hover:text-slate-200">Zahl</button>
+        </div>
+      </div>
+
+      <!-- 3D Coin Stage -->
+      <div class="perspective-1000 my-4 flex justify-center items-center h-48 w-48">
+        <div id="coin" class="w-44 h-44 relative transform-style-3d transition-transform duration-100 cursor-pointer group" onclick="triggerFlip()">
+          
+          <!-- Front Side (Kopf) -->
+          <div class="absolute inset-0 rounded-full bg-gradient-to-tr from-amber-600 via-amber-400 to-amber-200 p-1 coin-shadow backface-hidden flex items-center justify-center border-2 border-amber-300/50">
+            <div class="w-full h-full rounded-full bg-gradient-to-br from-amber-500 to-amber-700 flex flex-col items-center justify-center text-amber-950 p-2 shadow-inner border border-amber-300/40 relative overflow-hidden">
+              <!-- Shiny overlay -->
+              <div class="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent pointer-events-none"></div>
+              <!-- Crown / Head Icon -->
+              <svg class="w-16 h-16 drop-shadow-md text-amber-950 mb-1" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/>
+              </svg>
+              <span class="font-black text-xl tracking-wider uppercase drop-shadow-sm">Kopf</span>
+            </div>
+          </div>
+
+          <!-- Back Side (Zahl) -->
+          <div class="absolute inset-0 rounded-full bg-gradient-to-tr from-slate-400 via-slate-200 to-slate-100 p-1 coin-shadow backface-hidden rotate-y-180 flex items-center justify-center border-2 border-slate-200/50">
+            <div class="w-full h-full rounded-full bg-gradient-to-br from-slate-300 to-slate-500 flex flex-col items-center justify-center text-slate-900 p-2 shadow-inner border border-slate-200/40 relative overflow-hidden">
+              <!-- Shiny overlay -->
+              <div class="absolute inset-0 bg-gradient-to-tr from-transparent via-white/30 to-transparent pointer-events-none"></div>
+              <!-- Number Icon -->
+              <span class="font-black text-5xl tracking-tighter drop-shadow-md mb-1 text-slate-900">1</span>
+              <span class="font-black text-xl tracking-wider uppercase drop-shadow-sm">Zahl</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Result Display Text -->
+      <div class="min-h-[52px] flex flex-col items-center justify-center text-center">
+        <div id="resultBadge" class="text-2xl font-black tracking-wide text-amber-400 opacity-0 transform translate-y-2 transition-all duration-300 flex items-center gap-2">
+          <span id="resultText">-</span>
+          <span id="predictionFeedback" class="text-xs px-2 py-0.5 rounded-full font-bold hidden"></span>
+        </div>
+        <p id="subResultText" class="text-xs text-slate-400 mt-1 h-4">Klicke auf die Münze oder den Button</p>
+      </div>
+
+      <!-- Action Button -->
+      <button 
+        id="flipBtn" 
+        onclick="triggerFlip()"
+        class="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:scale-[0.98] text-slate-950 font-bold text-lg shadow-lg shadow-amber-500/20 hover:shadow-amber-500/35 transition-all duration-200 flex items-center justify-center gap-3 group relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
+        <svg id="btnIcon" class="w-6 h-6 transition-transform group-hover:rotate-180 duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        <span id="btnLabel">Münze werfen</span>
+        <span class="text-[10px] font-semibold px-2 py-0.5 bg-amber-950/20 text-amber-950 rounded-md border border-amber-950/10 ml-auto hidden sm:inline-block">[LEERTASTE]</span>
+      </button>
+
+    </div>
+
+    <!-- Statistics & History Card -->
+    <div class="bg-slate-900/60 rounded-3xl border border-slate-800/80 p-5 flex flex-col gap-4 backdrop-blur-sm">
+      
+      <!-- Header Stats -->
+      <div class="flex justify-between items-center">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+          <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+          Statistik & Verlauf
+        </h2>
+        <button onclick="resetStats()" class="text-xs text-slate-500 hover:text-slate-300 transition-colors underline decoration-slate-700 underline-offset-4">
+          Zurücksetzen
+        </button>
+      </div>
+
+      <!-- Stats Counters Grid -->
+      <div class="grid grid-cols-3 gap-3">
+        <div class="bg-slate-950/50 p-3 rounded-2xl border border-slate-800/50 flex flex-col items-center">
+          <span class="text-xs text-slate-400 font-medium">Gesamt</span>
+          <span id="statTotal" class="text-xl font-bold text-slate-100 mt-0.5">0</span>
+        </div>
+        <div class="bg-slate-950/50 p-3 rounded-2xl border border-slate-800/50 flex flex-col items-center">
+          <span class="text-xs text-amber-400/80 font-medium">Kopf</span>
+          <span id="statKopf" class="text-xl font-bold text-amber-400 mt-0.5">0 <span id="pctKopf" class="text-xs font-normal text-slate-500">(0%)</span></span>
+        </div>
+        <div class="bg-slate-950/50 p-3 rounded-2xl border border-slate-800/50 flex flex-col items-center">
+          <span class="text-xs text-slate-300 font-medium">Zahl</span>
+          <span id="statZahl" class="text-xl font-bold text-slate-300 mt-0.5">0 <span id="pctZahl" class="text-xs font-normal text-slate-500">(0%)</span></span>
+        </div>
+      </div>
+
+      <!-- Recent History List -->
+      <div class="flex flex-col gap-2">
+        <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Letzte Würfe</span>
+        <div id="historyList" class="flex items-center gap-2 overflow-x-auto py-1 scrollbar-none min-h-[36px]">
+          <span class="text-xs text-slate-600 italic">Noch keine Würfe durchgeführt</span>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <script>
+    // State
+    let isFlipping = false;
+    let currentRotation = 0;
+    let selectedPrediction = 'none';
+    let stats = {
+      total: 0,
+      kopf: 0,
+      zahl: 0,
+      history: []
+    };
+
+    // Audio Context Synthesizer for flip sounds
+    function playFlipSound() {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        
+        // Metallic coin click
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1200, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.15);
+        
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.15);
+      } catch (e) {
+        // Audio not allowed or supported
+      }
+    }
+
+    function playLandSound() {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(220, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.1);
+        
+        gain.gain.setValueAtTime(0.4, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.1);
+      } catch(e) {}
+    }
+
+    // Prediction Selector
+    function selectPrediction(pred) {
+      if (isFlipping) return;
+      selectedPrediction = pred;
+      ['none', 'Kopf', 'Zahl'].forEach(p => {
+        const btn = document.getElementById(`pred-${p}`);
+        if (!btn) return;
+        if (p === pred) {
+          btn.className = 'py-1.5 rounded-xl transition-all text-amber-400 bg-slate-800 border border-slate-700/50 shadow-sm font-semibold';
+        } else {
+          btn.className = 'py-1.5 rounded-xl transition-all text-slate-400 hover:text-slate-200';
+        }
+      });
+    }
+
+    // Main Coin Flip Action
+    async function triggerFlip() {
+      if (isFlipping) return;
+      
+      isFlipping = true;
+      updateStatus('api', 'Lade Ergebis...');
+      playFlipSound();
+
+      const coinEl = document.getElementById('coin');
+      const flipBtn = document.getElementById('flipBtn');
+      const resultBadge = document.getElementById('resultBadge');
+      const resultText = document.getElementById('resultText');
+      const subResultText = document.getElementById('subResultText');
+      const predictionFeedback = document.getElementById('predictionFeedback');
+
+      // UI Lock
+      flipBtn.disabled = true;
+      resultBadge.classList.add('opacity-0', 'translate-y-2');
+      subResultText.innerText = 'Münze fliegt...';
+      predictionFeedback.classList.add('hidden');
+
+      let apiResult = 'Kopf';
+      let apiSuccess = true;
+
+      try {
+        const response = await fetch('/api/flip');
+        if (!response.ok) throw new Error('Network error');
+        const data = await response.json();
+        if (data && (data.result === 'Kopf' || data.result === 'Zahl')) {
+          apiResult = data.result;
+        } else {
+          apiResult = Math.random() < 0.5 ? 'Kopf' : 'Zahl';
+        }
+      } catch (err) {
+        console.warn('API Error, using fallback local random:', err);
+        apiResult = Math.random() < 0.5 ? 'Kopf' : 'Zahl';
+        apiSuccess = false;
+      }
+
+      // Calculate 3D rotations
+      // Kopf: Even multiple of 360deg (e.g. 1800deg)
+      // Zahl: Odd multiple of 180deg (e.g. 1980deg)
+      const extraTurns = 5; // 5 full 360 spins
+      const baseDegrees = currentRotation + (extraTurns * 360);
+      
+      // Align target end rotation
+      let targetRotation = baseDegrees - (baseDegrees % 360);
+      if (apiResult === 'Zahl') {
+        targetRotation += 180;
+      }
+      currentRotation = targetRotation;
+
+      // Apply CSS Transition animation
+      coinEl.style.transition = 'transform 1.3s cubic-bezier(0.15, 0.85, 0.35, 1.2)';
+      coinEl.style.transform = `rotateY(${currentRotation}deg)`;
+
+      // Wait for flip duration
+      setTimeout(() => {
+        playLandSound();
+        isFlipping = false;
+        flipBtn.disabled = false;
+        
+        // Update Status
+        updateStatus('ready', 'Bereit');
+
+        // Set Result Text
+        resultText.innerText = apiResult;
+        if (apiResult === 'Kopf') {
+          resultBadge.className = 'text-2xl font-black tracking-wide text-amber-400 opacity-100 translate-y-0 transition-all duration-300 flex items-center gap-2';
+        } else {
+          resultBadge.className = 'text-2xl font-black tracking-wide text-slate-200 opacity-100 translate-y-0 transition-all duration-300 flex items-center gap-2';
+        }
+
+        // Handle Prediction outcome
+        if (selectedPrediction !== 'none') {
+          predictionFeedback.classList.remove('hidden');
+          if (selectedPrediction === apiResult) {
+            predictionFeedback.innerText = 'Richtig! 🎉';
+            predictionFeedback.className = 'text-xs px-2 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+          } else {
+            predictionFeedback.innerText = 'Falsch ❌';
+            predictionFeedback.className = 'text-xs px-2 py-0.5 rounded-full font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30';
+          }
+        }
+
+        subResultText.innerText = apiSuccess ? 'Ergebnis via API /api/flip' : 'Ergebnis lokal ermittelt';
+
+        // Record Stats
+        recordFlip(apiResult);
+
+      }, 1300);
+    }
+
+    function updateStatus(type, label) {
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
+      text.innerText = label;
+      if (type === 'api') {
+        dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-ping';
+      } else {
+        dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+      }
+    }
+
+    function recordFlip(result) {
+      stats.total++;
+      if (result === 'Kopf') stats.kopf++;
+      else stats.zahl++;
+      
+      stats.history.unshift(result);
+      if (stats.history.length > 15) stats.history.pop();
+
+      saveStats();
+      renderStats();
+    }
+
+    function renderStats() {
+      document.getElementById('statTotal').innerText = stats.total;
+      
+      const kopfPct = stats.total > 0 ? Math.round((stats.kopf / stats.total) * 100) : 0;
+      const zahlPct = stats.total > 0 ? Math.round((stats.zahl / stats.total) * 100) : 0;
+
+      document.getElementById('statKopf').innerHTML = `${stats.kopf} <span class="text-xs font-normal text-slate-500">(${kopfPct}%)</span>`;
+      document.getElementById('statZahl').innerHTML = `${stats.zahl} <span class="text-xs font-normal text-slate-500">(${zahlPct}%)</span>`;
+
+      const historyContainer = document.getElementById('historyList');
+      if (stats.history.length === 0) {
+        historyContainer.innerHTML = `<span class="text-xs text-slate-600 italic">Noch keine Würfe durchgeführt</span>`;
+        return;
+      }
+
+      historyContainer.innerHTML = stats.history.filter(item => item === 'Kopf' || item === 'Zahl').map((item, index) => {
+        const isKopf = item === 'Kopf';
+        const color = isKopf ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' : 'bg-slate-800 text-slate-300 border-slate-700';
+        const opacity = index === 0 ? 'scale-105 ring-2 ring-amber-400/50' : 'opacity-80';
+        return `<span class="px-2.5 py-1 rounded-lg border text-xs font-bold transition-all shrink-0 ${color} ${opacity}">${item}</span>`;
+      }).join('');
+    }
+
+    function resetStats() {
+      if (confirm('Möchtest du die bisherige Statistik wirklich zurücksetzen?')) {
+        stats = { total: 0, kopf: 0, zahl: 0, history: [] };
+        saveStats();
+        renderStats();
+        document.getElementById('resultBadge').classList.add('opacity-0');
+        document.getElementById('subResultText').innerText = 'Klicke auf die Münze oder den Button';
+      }
+    }
+
+    function saveStats() {
+      try {
+        localStorage.setItem('muenzwurf_stats', JSON.stringify(stats));
+      } catch (e) {}
+    }
+
+    function loadStats() {
+      try {
+        const saved = localStorage.getItem('muenzwurf_stats');
+        if (saved) {
+          stats = JSON.parse(saved);
+          if (!Array.isArray(stats.history)) {
+            stats.history = [];
+          }
+          renderStats();
+        }
+      } catch (e) {}
+    }
+
+    // Keyboard shortcut (Space key to trigger flip)
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && e.target === document.body) {
+        e.preventDefault();
+        triggerFlip();
+      }
+    });
+
+    // Initialize
+    loadStats();
+  </script>
+</body>
+</html>

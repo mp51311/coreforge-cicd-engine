@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tiny Password Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4 font-sans antialiased">
+  <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
+    <!-- Header -->
+    <div class="text-center space-y-1">
+      <h1 class="text-2xl font-bold tracking-tight text-white flex items-center justify-center gap-2">
+        <svg class="w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+        Tiny Password
+      </h1>
+      <p class="text-xs text-slate-400">Sichere, anpassbare Passwörter sofort generieren</p>
+    </div>
+
+    <!-- Password Display Field -->
+    <div class="relative flex items-center bg-slate-950 border border-slate-800 rounded-xl overflow-hidden focus-within:border-indigo-500 transition-colors">
+      <input 
+        id="passwordDisplay" 
+        type="text" 
+        readonly 
+        class="w-full bg-transparent px-4 py-3.5 text-lg font-mono text-indigo-300 focus:outline-none tracking-wider pr-36 select-all"
+        placeholder="Klicken Sie auf Generieren"
+      />
+      <button 
+        id="copyBtn" 
+        title="In Zwischenablage kopieren" 
+        class="absolute right-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700 active:scale-95"
+      >
+        <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+        </svg>
+        <span id="copyBtnText">In Zwischenablage kopieren</span>
+      </button>
+    </div>
+
+    <!-- Status Feedback Label -->
+    <div id="statusLabel" class="text-center text-xs font-medium text-emerald-400 opacity-0 transition-opacity duration-300 h-4">
+      In Zwischenablage kopiert!
+    </div>
+
+    <!-- Controls -->
+    <div class="space-y-4 bg-slate-950/50 p-4 rounded-xl border border-slate-800/60">
+      <!-- Length Control -->
+      <div class="space-y-2">
+        <div class="flex justify-between items-center text-xs font-medium">
+          <label for="lengthSlider" class="text-slate-300">Passwortlänge</label>
+          <span id="lengthValue" class="font-mono text-indigo-400 font-bold bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">12</span>
+        </div>
+        <input 
+          id="lengthSlider" 
+          type="range" 
+          min="4" 
+          max="64" 
+          value="12" 
+          class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+        />
+      </div>
+
+      <!-- Character Options Grid -->
+      <div class="grid grid-cols-2 gap-3 pt-2">
+        <label class="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-300 hover:text-white transition">
+          <input id="incUppercase" type="checkbox" checked class="w-4 h-4 rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-indigo-500 accent-indigo-500">
+          <span>Großbuchstaben (A-Z)</span>
+        </label>
+        <label class="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-300 hover:text-white transition">
+          <input id="incLowercase" type="checkbox" checked class="w-4 h-4 rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-indigo-500 accent-indigo-500">
+          <span>Kleinbuchstaben (a-z)</span>
+        </label>
+        <label class="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-300 hover:text-white transition">
+          <input id="incNumbers" type="checkbox" checked class="w-4 h-4 rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-indigo-500 accent-indigo-500">
+          <span>Zahlen (0-9)</span>
+        </label>
+        <label class="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-300 hover:text-white transition">
+          <input id="incSymbols" type="checkbox" checked class="w-4 h-4 rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-indigo-500 accent-indigo-500">
+          <span>Sonderzeichen (!@#$)</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Strength Indicator -->
+    <div class="space-y-1.5">
+      <div class="flex justify-between text-xs text-slate-400">
+        <span>Passwortstärke</span>
+        <span id="strengthText" class="font-semibold text-slate-300">-</span>
+      </div>
+      <div class="grid grid-cols-4 gap-1.5 h-1.5">
+        <div id="strBar1" class="bg-slate-800 rounded-full transition-colors duration-300"></div>
+        <div id="strBar2" class="bg-slate-800 rounded-full transition-colors duration-300"></div>
+        <div id="strBar3" class="bg-slate-800 rounded-full transition-colors duration-300"></div>
+        <div id="strBar4" class="bg-slate-800 rounded-full transition-colors duration-300"></div>
+      </div>
+    </div>
+
+    <!-- Generate Button -->
+    <button 
+      id="generateBtn" 
+      class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-semibold text-sm rounded-xl shadow-lg shadow-indigo-600/25 transition-all transform active:scale-[0.99] flex items-center justify-center gap-2"
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+      <span id="generateBtnText">Passwort generieren</span>
+    </button>
+  </div>
+
+  <script>
+    const UPPERCASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const LOWERCASE = 'abcdefghijklmnopqrstuvwxyz';
+    const NUMBERS = '0123456789';
+    const SYMBOLS = '!@#$%^&*()_+-=[]{}|;:,.<>?';
+
+    const passwordDisplay = document.getElementById('passwordDisplay');
+    const copyBtn = document.getElementById('copyBtn');
+    const copyBtnText = document.getElementById('copyBtnText');
+    const generateBtn = document.getElementById('generateBtn');
+    const lengthSlider = document.getElementById('lengthSlider');
+    const lengthValue = document.getElementById('lengthValue');
+    const statusLabel = document.getElementById('statusLabel');
+    
+    const incUppercase = document.getElementById('incUppercase');
+    const incLowercase = document.getElementById('incLowercase');
+    const incNumbers = document.getElementById('incNumbers');
+    const incSymbols = document.getElementById('incSymbols');
+
+    const strText = document.getElementById('strengthText');
+    const strBars = [
+      document.getElementById('strBar1'),
+      document.getElementById('strBar2'),
+      document.getElementById('strBar3'),
+      document.getElementById('strBar4')
+    ];
+
+    let statusTimeout;
+    let copyTimeout;
+
+    function getRandomChar(charset) {
+      const array = new Uint32Array(1);
+      window.crypto.getRandomValues(array);
+      return charset[array[0] % charset.length];
+    }
+
+    function generatePassword() {
+      let charset = '';
+      let required = [];
+
+      if (incUppercase.checked) {
+        charset += UPPERCASE;
+        required.push(getRandomChar(UPPERCASE));
+      }
+      if (incLowercase.checked) {
+        charset += LOWERCASE;
+        required.push(getRandomChar(LOWERCASE));
+      }
+      if (incNumbers.checked) {
+        charset += NUMBERS;
+        required.push(getRandomChar(NUMBERS));
+      }
+      if (incSymbols.checked) {
+        charset += SYMBOLS;
+        required.push(getRandomChar(SYMBOLS));
+      }
+
+      if (!charset) {
+        passwordDisplay.value = '';
+        updateStrength(0);
+        showStatus('Bitte mindestens eine Option auswählen', true);
+        return;
+      }
+
+      const length = parseInt(lengthSlider.value, 10);
+      let password = [...required];
+
+      for (let i = password.length; i < length; i++) {
+        password.push(getRandomChar(charset));
+      }
+
+      // Cryptographically secure shuffle using window.crypto.getRandomValues
+      for (let i = password.length - 1; i > 0; i--) {
+        const rand = new Uint32Array(1);
+        window.crypto.getRandomValues(rand);
+        const j = rand[0] % (i + 1);
+        [password[i], password[j]] = [password[j], password[i]];
+      }
+
+      passwordDisplay.value = password.join('');
+      evaluateStrength(password.join(''));
+    }
+
+    function evaluateStrength(pwd) {
+      if (!pwd) return updateStrength(0);
+      let score = 0;
+      if (pwd.length >= 8) score++;
+      if (pwd.length >= 12) score++;
+      const types = [/[A-Z]/, /[a-z]/, /[0-9]/, /[^A-Za-z0-9]/].filter(r => r.test(pwd)).length;
+      if (types >= 3) score++;
+      if (types === 4 && pwd.length >= 12) score++;
+
+      updateStrength(Math.min(4, Math.max(1, score)));
+    }
+
+    function updateStrength(score) {
+      const colors = ['bg-slate-800', 'bg-red-500', 'bg-amber-500', 'bg-emerald-500', 'bg-indigo-500'];
+      const labels = ['Keine', 'Schwach', 'Mittel', 'Stark', 'Sehr stark'];
+      
+      strText.textContent = labels[score];
+      strBars.forEach((bar, index) => {
+        bar.className = 'rounded-full transition-colors duration-300 h-1.5 ' + 
+          (index < score ? colors[score] : 'bg-slate-800');
+      });
+    }
+
+    function showStatus(message, isError = false) {
+      clearTimeout(statusTimeout);
+      statusLabel.textContent = message;
+      statusLabel.className = `text-center text-xs font-medium transition-opacity duration-300 h-4 opacity-100 ${isError ? 'text-rose-400' : 'text-emerald-400'}`;
+      statusTimeout = setTimeout(() => {
+        statusLabel.classList.add('opacity-0');
+      }, 2000);
+    }
+
+    async function copyToClipboard() {
+      if (!passwordDisplay.value) return;
+      try {
+        await navigator.clipboard.writeText(passwordDisplay.value);
+        handleCopySuccess();
+      } catch (err) {
+        passwordDisplay.select();
+        document.execCommand('copy');
+        handleCopySuccess();
+      }
+    }
+
+    function handleCopySuccess() {
+      showStatus('In Zwischenablage kopiert!');
+      clearTimeout(copyTimeout);
+      copyBtnText.textContent = 'Kopiert!';
+      copyTimeout = setTimeout(() => {
+        copyBtnText.textContent = 'In Zwischenablage kopieren';
+      }, 2000);
+    }
+
+    copyBtn.addEventListener('click', copyToClipboard);
+
+    lengthSlider.addEventListener('input', (e) => {
+      lengthValue.textContent = e.target.value;
+      generatePassword();
+    });
+
+    [incUppercase, incLowercase, incNumbers, incSymbols].forEach(checkbox => {
+      checkbox.addEventListener('change', generatePassword);
+    });
+
+    generateBtn.addEventListener('click', generatePassword);
+
+    // Initial generation on load
+    generatePassword();
+  </script>
+</body>
+</html>

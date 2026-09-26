@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="de" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zufallsfarben-Generator & System Health</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .led-pulse-green {
+      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+      animation: pulse-green 2s infinite;
+    }
+    .led-pulse-red {
+      box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+      animation: pulse-red 2s infinite;
+    }
+    @keyframes pulse-green {
+      0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+      70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+    }
+    @keyframes pulse-red {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+    .glass-card {
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+  </style>
+</head>
+<body id="canvas" class="h-full w-full transition-colors duration-500 ease-out flex flex-col justify-between p-4 sm:p-8 relative select-none overflow-x-hidden">
+
+  <!-- TOP OVERLAY BAR -->
+  <header class="w-full flex justify-between items-center z-20">
+    <!-- Logo / Brand -->
+    <div id="brand-tag" class="flex items-center gap-2 px-4 py-2 rounded-2xl glass-card transition-colors duration-300 shadow-sm">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+      </svg>
+      <span class="font-bold tracking-tight text-sm sm:text-base">ChromaPulse</span>
+    </div>
+
+    <!-- System Health Status Badge -->
+    <div id="health-badge" class="flex items-center gap-2.5 px-4 py-2 rounded-2xl glass-card transition-all duration-300 shadow-sm text-xs sm:text-sm font-medium cursor-pointer hover:scale-105" onclick="fetchHealth()">
+      <span id="health-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 led-pulse-green inline-block"></span>
+      <span class="opacity-75 hidden sm:inline">System Health:</span>
+      <span id="health-status-text" class="font-bold uppercase tracking-wider">OK</span>
+      <span id="health-ping" class="font-mono opacity-60 text-xs border-l border-current/20 pl-2 ml-1">--ms</span>
+    </div>
+  </header>
+
+  <!-- CENTER MAIN CONTENT OVERLAY -->
+  <main class="my-auto flex flex-col items-center justify-center z-10 py-8">
+    <div id="main-card" class="w-full max-w-md p-6 sm:p-8 rounded-3xl glass-card shadow-2xl transition-all duration-300 flex flex-col items-center text-center gap-6">
+      
+      <!-- Color Hex Badge & Preview Header -->
+      <div class="space-y-1 w-full">
+        <p class="text-xs font-semibold uppercase tracking-widest opacity-60">Aktuelle Farbe</p>
+        <div class="flex items-center justify-center gap-3">
+          <h1 id="hex-display" class="text-4xl sm:text-5xl font-extrabold font-mono tracking-tight cursor-pointer hover:opacity-80 transition-opacity" onclick="copyToClipboard(currentHex, 'HEX Code')" title="Klicken zum Kopieren">
+            #3B82F6
+          </h1>
+          <button id="lock-btn" onclick="toggleLock()" class="p-2.5 rounded-xl hover:bg-black/10 dark:hover:bg-white/10 transition-colors" title="Farbe sperren">
+            <svg id="lock-icon-unlocked" class="w-5 h-5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+            </svg>
+            <svg id="lock-icon-locked" class="w-5 h-5 text-amber-500 hidden" fill="currentColor" viewBox="0 0 24 24">
+              <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Primary Action Button: Farbe wechseln -->
+      <button id="action-btn" onclick="generateRandomColor()" class="w-full py-4 px-6 rounded-2xl font-bold text-base sm:text-lg shadow-lg hover:shadow-xl transform active:scale-95 transition-all duration-200 flex items-center justify-center gap-3 cursor-pointer">
+        <svg class="w-5 h-5 animate-spin-hover" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        <span>Farbe wechseln</span>
+        <span class="text-xs font-normal opacity-60 bg-black/10 dark:bg-white/10 px-2 py-0.5 rounded-md hidden sm:inline">[Leertaste]</span>
+      </button>
+
+      <!-- Color Codes Grid -->
+      <div class="grid grid-cols-2 gap-3 w-full text-xs font-mono">
+        <div onclick="copyToClipboard(currentRgb, 'RGB Wert')" class="p-3 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer text-left">
+          <span class="block text-[10px] font-sans font-bold opacity-50 uppercase">RGB</span>
+          <span id="rgb-display" class="font-semibold truncate block mt-0.5">rgb(59, 130, 246)</span>
+        </div>
+        <div onclick="copyToClipboard(currentHsl, 'HSL Wert')" class="p-3 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer text-left">
+          <span class="block text-[10px] font-sans font-bold opacity-50 uppercase">HSL</span>
+          <span id="hsl-display" class="font-semibold truncate block mt-0.5">217°, 91%, 60%</span>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- BOTTOM PALETTE HISTORY BAR -->
+  <footer class="w-full flex flex-col items-center gap-3 z-20">
+    <div id="history-container" class="flex items-center gap-2 p-2 rounded-2xl glass-card transition-all duration-300 overflow-x-auto max-w-full">
+      <span class="text-xs font-semibold opacity-60 px-2 hidden sm:inline">Verlauf:</span>
+      <div id="palette-history" class="flex items-center gap-2">
+        <!-- Palette dots populated via JS -->
+      </div>
+    </div>
+  </footer>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none px-4 py-3 rounded-xl bg-slate-900 text-white shadow-2xl flex items-center gap-2 text-sm font-medium">
+    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+    </svg>
+    <span id="toast-message">In Zwischenablage kopiert!</span>
+  </div>
+
+  <script>
+    // State Management
+    let currentHex = '#3B82F6';
+    let currentRgb = 'rgb(59, 130, 246)';
+    let currentHsl = '217°, 91%, 60%';
+    let isLocked = false;
+    let history = [];
+    let toastTimeout = null;
+
+    // Helper: Convert HEX to RGB
+    function hexToRgb(hex) {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : { r: 59, g: 130, b: 246 };
+    }
+
+    // Helper: Convert RGB to HSL
+    function rgbToHsl(r, g, b) {
+      r /= 255; g /= 255; b /= 255;
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      let h, s, l = (max + min) / 2;
+
+      if (max === min) {
+        h = s = 0;
+      } else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+          case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+          case g: h = (b - r) / d + 2; break;
+          case b: h = (r - g) / d + 4; break;
+        }
+        h /= 6;
+      }
+      return `${Math.round(h * 360)}°, ${Math.round(s * 100)}%, ${Math.round(l * 100)}%`;
+    }
+
+    // Calculate perceived luminance (YIQ formula)
+    function getLuminance(r, g, b) {
+      return (r * 299 + g * 587 + b * 114) / 1000;
+    }
+
+    // Toggle Lock State
+    function toggleLock() {
+      isLocked = !isLocked;
+      document.getElementById('lock-icon-unlocked').classList.toggle('hidden', isLocked);
+      document.getElementById('lock-icon-locked').classList.toggle('hidden', !isLocked);
+      showToast(isLocked ? 'Farbe fixiert' : 'Farbe entsperrt');
+    }
+
+    // Apply adaptive theme styling based on brightness
+    function applyContrastStyle(hex) {
+      const { r, g, b } = hexToRgb(hex);
+      const luminance = getLuminance(r, g, b);
+      const isLight = luminance > 128;
+
+      const textColor = isLight ? '#0F172A' : '#FFFFFF';
+      const cardBg = isLight ? 'rgba(255, 255, 255, 0.45)' : 'rgba(15, 23, 42, 0.45)';
+      const cardBorder = isLight ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.12)';
+      const btnBg = isLight ? '#0F172A' : '#FFFFFF';
+      const btnText = isLight ? '#FFFFFF' : '#0F172A';
+
+      // Body background
+      document.body.style.backgroundColor = hex;
+      document.body.style.color = textColor;
+
+      // Dynamic Glass Cards
+      const glassElements = document.querySelectorAll('.glass-card');
+      glassElements.forEach(el => {
+        el.style.backgroundColor = cardBg;
+        el.style.borderColor = cardBorder;
+        el.style.borderWidth = '1px';
+      });
+
+      // Action Button Styling
+      const actionBtn = document.getElementById('action-btn');
+      actionBtn.style.backgroundColor = btnBg;
+      actionBtn.style.color = btnText;
+    }
+
+    // Generate New Random Color
+    function generateRandomColor(forcedHex = null) {
+      if (isLocked && !forcedHex) return;
+
+      let hex = forcedHex;
+      if (!hex) {
+        const randomInt = Math.floor(Math.random() * 16777215);
+        hex = '#' + randomInt.toString(16).padStart(6, '0').toUpperCase();
+      }
+
+      const { r, g, b } = hexToRgb(hex);
+      currentHex = hex;
+      currentRgb = `rgb(${r}, ${g}, ${b})`;
+      currentHsl = rgbToHsl(r, g, b);
+
+      // Update DOM safely using textContent
+      document.getElementById('hex-display').textContent = currentHex;
+      document.getElementById('rgb-display').textContent = currentRgb;
+      document.getElementById('hsl-display').textContent = currentHsl;
+
+      applyContrastStyle(currentHex);
+      addToHistory(currentHex);
+    }
+
+    // Add to Recent Palette History
+    function addToHistory(hex) {
+      if (history.includes(hex)) {
+        history = history.filter(c => c !== hex);
+      }
+      history.unshift(hex);
+      if (history.length > 7) history.pop();
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const container = document.getElementById('palette-history');
+      container.innerHTML = '';
+      history.forEach(hex => {
+        const dot = document.createElement('button');
+        dot.className = 'w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 border-white/50 shadow-sm transition-transform hover:scale-125 focus:outline-none';
+        dot.style.backgroundColor = hex;
+        dot.title = hex;
+        dot.onclick = () => generateRandomColor(hex);
+        container.appendChild(dot);
+      });
+    }
+
+    // Copy Toast Notification
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      const msgEl = document.getElementById('toast-message');
+      msgEl.textContent = message;
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 2000);
+    }
+
+    function copyToClipboard(text, label) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast(`${label} (${text}) kopiert!`);
+      }).catch(() => {
+        showToast('Kopieren fehlgeschlagen');
+      });
+    }
+
+    // Keyboard Shortcuts (Spacebar to switch color)
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && (e.target === document.body || e.target === document.documentElement)) {
+        e.preventDefault();
+        generateRandomColor();
+      }
+    });
+
+    // System Health Monitoring (/health endpoint consumer)
+    async function fetchHealth() {
+      const startTime = performance.now();
+      try {
+        const response = await fetch('/health', { cache: 'no-store' });
+        const latency = Math.round(performance.now() - startTime);
+
+        if (response.ok) {
+          const data = await response.json().catch(() => ({ status: 'ok' }));
+          updateHealthUI(true, data.status || 'ok', latency);
+        } else {
+          updateHealthUI(false, `HTTP ${response.status}`, latency);
+        }
+      } catch (err) {
+        const latency = Math.round(performance.now() - startTime);
+        updateHealthUI(false, 'OFFLINE', latency);
+      }
+    }
+
+    function updateHealthUI(isHealthy, statusText, latencyMs) {
+      const dotEl = document.getElementById('health-dot');
+      const statusEl = document.getElementById('health-status-text');
+      const pingEl = document.getElementById('health-ping');
+
+      statusEl.textContent = statusText.toUpperCase();
+      pingEl.textContent = `${latencyMs}ms`;
+
+      if (isHealthy) {
+        dotEl.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 led-pulse-green inline-block';
+      } else {
+        dotEl.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 led-pulse-red inline-block';
+      }
+    }
+
+    // Initial Setup & Health Polling Interval (Every 5 Seconds)
+    generateRandomColor('#3B82F6');
+    fetchHealth();
+    setInterval(fetchHealth, 5000);
+  </script>
+</body>
+</html>

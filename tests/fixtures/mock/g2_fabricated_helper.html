@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kartenzieher - Mini Card Drawer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            table: {
+              800: '#15251c',
+              900: '#0d1812',
+              950: '#070f0b'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes cardFlip {
+      0% { transform: scale(0.8) rotateY(90deg); opacity: 0; }
+      100% { transform: scale(1) rotateY(0deg); opacity: 1; }
+    }
+    .animate-flip {
+      animation: cardFlip 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between font-sans selection:bg-emerald-500 selection:text-white">
+
+  <!-- Top Navigation Header -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50 px-4 py-3 sm:px-8">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-xl shadow-inner">
+          ♠
+        </div>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            Kartenzieher
+            <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-800/60 text-emerald-400">v1.0</span>
+          </h1>
+          <p class="text-xs text-slate-400 hidden sm:block">Mini Card Drawer App</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 text-xs font-mono text-slate-400 bg-slate-950/60 px-3 py-1.5 rounded-lg border border-slate-800">
+        <div>Gezogen: <span id="stat-count" class="text-emerald-400 font-bold">0</span></div>
+        <div class="h-3 w-[1px] bg-slate-800"></div>
+        <div>Code: <span id="stat-last-code" class="text-slate-200">--</span></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Interactive Felt Table Container -->
+  <main class="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-8 flex flex-col items-center justify-center gap-8">
+    
+    <!-- Felt Card Table Area -->
+    <div class="w-full max-w-md bg-gradient-to-b from-table-800 via-table-900 to-table-950 rounded-3xl p-6 sm:p-8 border-2 border-emerald-900/40 shadow-2xl shadow-black/80 flex flex-col items-center gap-6 relative overflow-hidden">
+      <!-- Felt Texture Subtle Glow -->
+      <div class="absolute -top-24 -left-24 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      <!-- Card Stage -->
+      <div id="card-stage" class="w-56 h-80 sm:w-64 sm:h-92 relative flex items-center justify-center perspective-1000">
+        <!-- Placeholder Deck Back / Initial State -->
+        <div id="empty-state" class="w-full h-full bg-slate-900/90 border-2 border-dashed border-emerald-700/40 rounded-2xl flex flex-col items-center justify-center p-6 text-center text-slate-500 gap-3 shadow-inner">
+          <div class="text-4xl text-emerald-800/60">🂠</div>
+          <p class="text-sm font-medium text-slate-400">Klicke auf <span class="text-emerald-400 font-semibold">Kartenziehen</span> um eine Spielkarte auszuwählen.</p>
+        </div>
+
+        <!-- Card Render Container -->
+        <div id="card-display" class="hidden w-full h-full bg-white text-slate-900 rounded-2xl p-5 shadow-2xl flex flex-col justify-between border border-slate-200 select-none relative overflow-hidden">
+          <!-- Top Left Rank & Symbol -->
+          <div class="flex flex-col items-start leading-none">
+            <span id="card-rank-top" class="text-3xl sm:text-4xl font-extrabold tracking-tight">--</span>
+            <span id="card-symbol-top" class="text-2xl sm:text-3xl mt-0.5">--</span>
+          </div>
+
+          <!-- Center Big Symbol -->
+          <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <span id="card-symbol-center" class="text-7xl sm:text-8xl transition-all scale-100 drop-shadow-sm">--</span>
+            <span id="card-suit-name" class="text-xs font-bold uppercase tracking-widest text-slate-400 mt-2">--</span>
+          </div>
+
+          <!-- Bottom Right Rank & Symbol (Inverted) -->
+          <div class="flex flex-col items-end leading-none rotate-180">
+            <span id="card-rank-bottom" class="text-3xl sm:text-4xl font-extrabold tracking-tight">--</span>
+            <span id="card-symbol-bottom" class="text-2xl sm:text-3xl mt-0.5">--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Controls -->
+      <div class="w-full flex flex-col gap-3 items-center">
+        <button id="draw-btn" onclick="drawCard()" class="w-full py-4 px-6 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-[0.98] transition-all text-white font-bold rounded-2xl shadow-lg shadow-emerald-950/50 flex items-center justify-center gap-3 text-lg border border-emerald-400/30 group cursor-pointer">
+          <span>Kartenziehen</span>
+          <svg class="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+          </svg>
+        </button>
+        <p class="text-xs text-slate-500 font-mono">Tipp: Drücke die <kbd class="px-1.5 py-0.5 bg-slate-800 text-slate-300 rounded border border-slate-700">Leertaste</kbd> zum Ziehen</p>
+      </div>
+    </div>
+
+    <!-- Drawn Cards History Drawer Section -->
+    <div class="w-full max-w-2xl bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 sm:p-6 backdrop-blur-sm">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+          <span>Verlauf / Gezogene Karten</span>
+          <span id="history-badge" class="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-mono">0</span>
+        </h2>
+        <button onclick="clearHistory()" id="clear-btn" class="text-xs text-slate-500 hover:text-rose-400 transition-colors hidden">Historie leeren</button>
+      </div>
+      
+      <div id="history-container" class="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-700 min-h-[76px]">
+        <p id="history-empty" class="text-xs text-slate-600 italic py-4 w-full text-center">Noch keine Karten gezogen.</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-900 py-4 text-center text-xs text-slate-600">
+    Mini Card Drawer App &bull; Standard 52 Card Deck Simulator
+  </footer>
+
+  <script>
+    // Local Deck Fallback & Utilities
+    const LOCAL_SUITS = [
+      { suit: 'Herz', symbol: '♥', color: 'red', code: 'H' },
+      { suit: 'Karo', symbol: '♦', color: 'red', code: 'D' },
+      { suit: 'Pik', symbol: '♠', color: 'black', code: 'S' },
+      { suit: 'Kreuz', symbol: '♣', color: 'black', code: 'C' }
+    ];
+
+    const LOCAL_RANKS = [
+      { rank: '2', code: '2' },
+      { rank: '3', code: '3' },
+      { rank: '4', code: '4' },
+      { rank: '5', code: '5' },
+      { rank: '6', code: '6' },
+      { rank: '7', code: '7' },
+      { rank: '8', code: '8' },
+      { rank: '9', code: '9' },
+      { rank: '10', code: '10' },
+      { rank: 'Bube', code: 'J' },
+      { rank: 'Dame', code: 'Q' },
+      { rank: 'König', code: 'K' },
+      { rank: 'Ass', code: 'A' }
+    ];
+
+    let drawCount = 0;
+    let history = [];
+
+    function getMockCard() {
+      const suitObj = LOCAL_SUITS[Math.floor(Math.random() * LOCAL_SUITS.length)];
+      const rankObj = LOCAL_RANKS[Math.floor(Math.random() * LOCAL_RANKS.length)];
+      return {
+        suit: suitObj.suit,
+        symbol: suitObj.symbol,
+        rank: rankObj.rank,
+        color: suitObj.color,
+        code: rankObj.code + suitObj.code
+      };
+    }
+
+    // Main Draw Handler consuming /api/draw with seamless local fallback
+    async function drawCard() {
+      const btn = document.getElementById('draw-btn');
+      btn.disabled = true;
+      btn.classList.add('opacity-80', 'cursor-not-allowed');
+
+      let cardData = null;
+      try {
+        const response = await fetch('/api/draw');
+        if (response.ok) {
+          cardData = await response.json();
+        } else {
+          cardData = getMockCard();
+        }
+      } catch (err) {
+        // Fallback to client side simulation if backend API endpoint unavailable
+        cardData = getMockCard();
+      }
+
+      renderCard(cardData);
+      addToHistory(cardData);
+      playAudioClick();
+
+      drawCount++;
+      document.getElementById('stat-count').textContent = drawCount;
+      document.getElementById('stat-last-code').textContent = cardData.code || '--';
+
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.classList.remove('opacity-80', 'cursor-not-allowed');
+      }, 200);
+    }
+
+    function renderCard(card) {
+      const emptyState = document.getElementById('empty-state');
+      const cardDisplay = document.getElementById('card-display');
+
+      emptyState.classList.add('hidden');
+      cardDisplay.classList.remove('hidden');
+      
+      // Trigger animation restart
+      cardDisplay.classList.remove('animate-flip');
+      void cardDisplay.offsetWidth;
+      cardDisplay.classList.add('animate-flip');
+
+      // Color styling
+      const isRed = card.color === 'red' || card.suit === 'Herz' || card.suit === 'Karo';
+      const colorClass = isRed ? 'text-red-600' : 'text-slate-900';
+
+      // Rank Display mapping (Short code or full)
+      let rankDisplay = card.rank;
+      if (card.rank === 'Bube') rankDisplay = 'J';
+      if (card.rank === 'Dame') rankDisplay = 'Q';
+      if (card.rank === 'König') rankDisplay = 'K';
+      if (card.rank === 'Ass') rankDisplay = 'A';
+
+      document.getElementById('card-rank-top').textContent = rankDisplay;
+      document.getElementById('card-rank-bottom').textContent = rankDisplay;
+      document.getElementById('card-symbol-top').textContent = card.symbol;
+      document.getElementById('card-symbol-bottom').textContent = card.symbol;
+      document.getElementById('card-symbol-center').textContent = card.symbol;
+      document.getElementById('card-suit-name').textContent = card.suit;
+
+      cardDisplay.className = `w-full h-full bg-white rounded-2xl p-5 shadow-2xl flex flex-col justify-between border border-slate-200 select-none relative overflow-hidden ${colorClass}`;
+    }
+
+    function addToHistory(card) {
+      history.unshift(card);
+      const container = document.getElementById('history-container');
+      const emptyText = document.getElementById('history-empty');
+      const clearBtn = document.getElementById('clear-btn');
+      const badge = document.getElementById('history-badge');
+
+      if (emptyText) emptyText.remove();
+      clearBtn.classList.remove('hidden');
+      badge.textContent = history.length;
+
+      const isRed = card.color === 'red' || card.suit === 'Herz' || card.suit === 'Karo';
+      const textCol = isRed ? 'text-red-600' : 'text-slate-900';
+
+      const badgeEl = document.createElement('div');
+      badgeEl.className = `flex-shrink-0 bg-white border border-slate-300 ${textCol} rounded-xl px-3 py-2 flex items-center gap-1.5 shadow-sm text-sm font-bold animate-flip`;
+      
+      const rankSpan = document.createElement('span');
+      rankSpan.textContent = card.rank;
+      
+      const symbolSpan = document.createElement('span');
+      symbolSpan.className = 'text-base';
+      symbolSpan.textContent = card.symbol;
+
+      badgeEl.appendChild(rankSpan);
+      badgeEl.appendChild(symbolSpan);
+
+      container.insertBefore(badgeEl, container.firstChild);
+    }
+
+    function clearHistory() {
+      history = [];
+      drawCount = 0;
+      document.getElementById('stat-count').textContent = '0';
+      document.getElementById('stat-last-code').textContent = '--';
+      document.getElementById('history-badge').textContent = '0';
+      document.getElementById('clear-btn').classList.add('hidden');
+      
+      const container = document.getElementById('history-container');
+      container.textContent = '';
+      const emptyP = document.createElement('p');
+      emptyP.id = 'history-empty';
+      emptyP.className = 'text-xs text-slate-600 italic py-4 w-full text-center';
+      emptyP.textContent = 'Noch keine Karten gezogen.';
+      container.appendChild(emptyP);
+      
+      document.getElementById('card-display').classList.add('hidden');
+      document.getElementById('empty-state').classList.remove('hidden');
+    }
+
+    // Simple Web Audio API Synthesizer for card draw sound effect
+    function playAudioClick() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.05);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.06);
+      } catch (e) {}
+    }
+
+    // Keyboard Shortcut (Spacebar)
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && e.target === document.body) {
+        e.preventDefault();
+        drawCard();
+      }
+    });
+  </script>
+</body>
+</html>

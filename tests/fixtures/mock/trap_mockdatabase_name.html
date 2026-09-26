@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="de" class="h-full bg-slate-50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kontakt Mini-App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="h-full font-sans antialiased text-slate-800 bg-slate-50 flex flex-col min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold shadow-md shadow-indigo-200">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-slate-900 leading-tight">Kontakt Mini-App</h1>
+          <p class="text-xs text-slate-500">Verwaltung & Kontakt-API Service</p>
+        </div>
+      </div>
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        API Aktiv
+      </span>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6">
+
+    <!-- Notification Banner Container -->
+    <div id="notificationBanner" class="hidden transform transition-all duration-300">
+      <div id="notificationCard" class="p-4 rounded-xl border flex items-start gap-3 shadow-sm">
+        <div id="notificationIcon" class="mt-0.5 shrink-0"></div>
+        <div class="flex-1">
+          <h3 id="notificationTitle" class="text-sm font-semibold"></h3>
+          <p id="notificationMessage" class="text-sm mt-0.5 opacity-90"></p>
+          <p id="notificationId" class="text-xs font-mono mt-1 opacity-75 hidden"></p>
+        </div>
+        <button onclick="dismissNotification()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-black/5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      
+      <!-- Form Section -->
+      <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8 space-y-6">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">Kontakt aufnehmen</h2>
+          <p class="text-sm text-slate-500 mt-1">Tragen Sie Ihre Daten ein, um eine Anfrage per API zu übermitteln.</p>
+        </div>
+
+        <form id="contactForm" onsubmit="handleSubmit(event)" class="space-y-5" novalidate>
+          
+          <!-- InputField (Name) -->
+          <div>
+            <label for="nameInput" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+              Name <span class="text-rose-500">*</span>
+            </label>
+            <div class="relative">
+              <input 
+                type="text" 
+                id="nameInput" 
+                name="name" 
+                placeholder="z. B. Max Mustermann"
+                maxLength="100"
+                oninput="validateField('name')"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-colors placeholder:text-slate-400"
+              />
+            </div>
+            <p id="nameError" class="text-xs text-rose-500 mt-1 hidden"></p>
+          </div>
+
+          <!-- InputField (Email) -->
+          <div>
+            <label for="emailInput" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+              E-Mail Adresse <span class="text-rose-500">*</span>
+            </label>
+            <div class="relative">
+              <input 
+                type="email" 
+                id="emailInput" 
+                name="email" 
+                placeholder="max@beispiel.de"
+                maxLength="255"
+                oninput="validateField('email')"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-colors placeholder:text-slate-400"
+              />
+            </div>
+            <p id="emailError" class="text-xs text-rose-500 mt-1 hidden"></p>
+          </div>
+
+          <!-- SubmitButton -->
+          <button 
+            type="submit" 
+            id="submitBtn"
+            class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-medium text-sm rounded-xl shadow-md shadow-indigo-100 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <span id="submitBtnText">Absenden</span>
+            <svg id="submitSpinner" class="w-4 h-4 animate-spin hidden" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </button>
+        </form>
+      </div>
+
+      <!-- Contacts Display Section -->
+      <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8 space-y-4">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+          <div>
+            <h2 class="text-xl font-bold text-slate-900">Gespeicherte Kontakte</h2>
+            <p class="text-sm text-slate-500">In-Memory Datensätze via API</p>
+          </div>
+          <span id="contactCount" class="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-semibold">0 Einträge</span>
+        </div>
+
+        <!-- Search / Filter -->
+        <div class="relative">
+          <input 
+            type="text" 
+            id="searchInput" 
+            oninput="renderContacts()" 
+            placeholder="Kontakte durchsuchen..."
+            class="w-full pl-9 pr-4 py-2 bg-slate-50 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+          />
+          <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+        </div>
+
+        <!-- List -->
+        <div id="contactsList" class="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t border-slate-200 py-4 mt-auto">
+    <div class="max-w-5xl mx-auto px-4 text-center text-xs text-slate-400">
+      Kontakt Mini-App &bull; Tailwind CSS + Vanilla JS &bull; REST API `/api/contact`
+    </div>
+  </footer>
+
+  <!-- Script Logic -->
+  <script>
+    // Local Data Store
+    let mockDatabase = [];
+
+    // Form Validation Helpers
+    function validateField(field) {
+      if (field === 'name') {
+        const val = document.getElementById('nameInput').value.trim();
+        const errorEl = document.getElementById('nameError');
+        if (!val) {
+          errorEl.textContent = 'Name darf nicht leer sein.';
+          errorEl.classList.remove('hidden');
+          return false;
+        } else if (val.length > 100) {
+          errorEl.textContent = 'Name darf maximal 100 Zeichen lang sein.';
+          errorEl.classList.remove('hidden');
+          return false;
+        } else {
+          errorEl.classList.add('hidden');
+          return true;
+        }
+      }
+      
+      if (field === 'email') {
+        const val = document.getElementById('emailInput').value.trim();
+        const errorEl = document.getElementById('emailError');
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!val) {
+          errorEl.textContent = 'E-Mail ist erforderlich.';
+          errorEl.classList.remove('hidden');
+          return false;
+        } else if (!emailRegex.test(val)) {
+          errorEl.textContent = 'Bitte eine gültige E-Mail-Adresse eingeben.';
+          errorEl.classList.remove('hidden');
+          return false;
+        } else if (val.length > 255) {
+          errorEl.textContent = 'E-Mail darf maximal 255 Zeichen lang sein.';
+          errorEl.classList.remove('hidden');
+          return false;
+        } else {
+          errorEl.classList.add('hidden');
+          return true;
+        }
+      }
+      return true;
+    }
+
+    // Notification Banner Handling
+    let bannerTimeout = null;
+    function showNotification(type, title, message, id = '') {
+      const banner = document.getElementById('notificationBanner');
+      const card = document.getElementById('notificationCard');
+      const icon = document.getElementById('notificationIcon');
+      const titleEl = document.getElementById('notificationTitle');
+      const messageEl = document.getElementById('notificationMessage');
+      const idEl = document.getElementById('notificationId');
+
+      if (type === 'success') {
+        card.className = "p-4 rounded-xl border flex items-start gap-3 shadow-sm bg-emerald-50 border-emerald-200 text-emerald-900";
+        icon.innerHTML = `<svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+      } else {
+        card.className = "p-4 rounded-xl border flex items-start gap-3 shadow-sm bg-rose-50 border-rose-200 text-rose-900";
+        icon.innerHTML = `<svg class="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+      }
+
+      titleEl.textContent = title;
+      messageEl.textContent = message;
+      
+      if (id) {
+        idEl.textContent = `ID: ${id}`;
+        idEl.classList.remove('hidden');
+      } else {
+        idEl.classList.add('hidden');
+      }
+
+      banner.classList.remove('hidden');
+
+      if (bannerTimeout) clearTimeout(bannerTimeout);
+      bannerTimeout = setTimeout(() => {
+        dismissNotification();
+      }, 6000);
+    }
+
+    function dismissNotification() {
+      const banner = document.getElementById('notificationBanner');
+      banner.classList.add('hidden');
+    }
+
+    // Submit Form
+    async function handleSubmit(event) {
+      event.preventDefault();
+      
+      const isNameValid = validateField('name');
+      const isEmailValid = validateField('email');
+      
+      if (!isNameValid || !isEmailValid) {
+        showNotification('error', 'Eingabefehler', 'Bitte korrigieren Sie die markierten Felder im Formular.');
+        return;
+      }
+
+      const submitBtn = document.getElementById('submitBtn');
+      const submitBtnText = document.getElementById('submitBtnText');
+      const submitSpinner = document.getElementById('submitSpinner');
+      const nameVal = document.getElementById('nameInput').value;
+      const emailVal = document.getElementById('emailInput').value;
+
+      // UI Loading State
+      submitBtn.disabled = true;
+      submitBtnText.textContent = 'Wird gesendet...';
+      submitSpinner.classList.remove('hidden');
+
+      try {
+        const response = await fetch('/api/contact', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            name: nameVal,
+            email: emailVal
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && (data.success !== false)) {
+          showNotification('success', 'Erfolgreich gesendet', data.message || 'Kontakt erfolgreich gespeichert.', data.id || '');
+          document.getElementById('contactForm').reset();
+          fetchContacts();
+        } else {
+          const detailMsg = Array.isArray(data.detail) ? data.detail.map(e => e.msg).join(', ') : data.message;
+          showNotification('error', 'Fehler beim Speichern', detailMsg || 'Die Anfrage konnte nicht verarbeitet werden.');
+        }
+      } catch (error) {
+        showNotification('error', 'Netzwerkfehler', 'Verbindung zum API-Endpunkt fehlgeschlagen.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtnText.textContent = 'Absenden';
+        submitSpinner.classList.add('hidden');
+      }
+    }
+
+    // Delete Contact locally
+    function deleteContact(id) {
+      mockDatabase = mockDatabase.filter(c => String(c.id) !== String(id));
+      renderContacts();
+    }
+
+    // Render Contacts List
+    function renderContacts() {
+      const container = document.getElementById('contactsList');
+      const countBadge = document.getElementById('contactCount');
+      const query = (document.getElementById('searchInput').value || '').toLowerCase();
+
+      const filtered = mockDatabase.filter(c => 
+        (c.name || '').toLowerCase().includes(query) || (c.email || '').toLowerCase().includes(query)
+      );
+
+      countBadge.textContent = `${mockDatabase.length} ${mockDatabase.length === 1 ? 'Eintrag' : 'Einträge'}`;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-8 px-4 border border-dashed border-slate-200 rounded-xl">
+            <svg class="w-8 h-8 text-slate-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+            </svg>
+            <p class="text-xs text-slate-500">Keine Kontakte gefunden.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map(item => `
+        <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 hover:border-slate-300 transition-all flex items-center justify-between gap-3 group">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center shrink-0 text-xs uppercase">
+              ${escapeHtml((item.name || '??').substring(0, 2))}
+            </div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <h4 class="text-sm font-semibold text-slate-800 truncate">${escapeHtml(item.name || '')}</h4>
+                ${item.id ? `<span class="text-[10px] font-mono text-slate-400 bg-white px-1.5 py-0.5 rounded border border-slate-200 shrink-0">${escapeHtml(String(item.id))}</span>` : ''}
+              </div>
+              <p class="text-xs text-slate-500 truncate mt-0.5">${escapeHtml(item.email || '')}</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity shrink-0">
+            <button 
+              onclick="deleteContact('${escapeHtml(String(item.id))}')" 
+              title="Löschen"
+              class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function escapeHtml(str) {
+      if (typeof str !== 'string') str = String(str || '');
+      return str.replace(/[&<>'" ]/g, 
+        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+      );
+    }
+
+    async function fetchContacts() {
+      try {
+        const res = await fetch('/api/contact');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            mockDatabase = data;
+          } else if (data && Array.isArray(data.contacts)) {
+            mockDatabase = data.contacts;
+          }
+          renderContacts();
+        }
+      } catch (err) {
+        renderContacts();
+      }
+    }
+
+    // Initial Render
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchContacts();
+    });
+  </script>
+</body>
+</html>

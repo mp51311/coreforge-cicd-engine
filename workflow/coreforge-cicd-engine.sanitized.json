@@ -1,0 +1,1825 @@
+{
+  "name": "CoreForge CI/CD Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "5cd4f03a-4ead-4649-b566-ff0ba398754c",
+      "name": "When chat message received",
+      "webhookId": "00000000-0000-4000-8000-000000000001"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.6-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        96,
+        208
+      ],
+      "id": "1ba8ab92-bdfd-40de-b18a-1ca675ec9236",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        240,
+        208
+      ],
+      "id": "32ba30f8-b40c-4e4d-bda9-881f92cd2ce1",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "aef54f7a-c4e0-4d6d-80c0-1779781375f6",
+              "leftValue": "={{ ($json.output || $json.text || '').toUpperCase().replace(/\\s+/g, ' ') }}",
+              "rightValue": "STATUS: DELEGATED",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        592,
+        0
+      ],
+      "id": "1e0ad998-338c-4e6a-b715-eec01b43b9ac",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.frontend_payload }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are a Senior Frontend Engineer. Output ONLY valid JSON containing a \"files\" array with a single \"index.html\".\n\nCRITICAL RULES:\n1. Deliver one complete HTML file (HTML5 + Tailwind CDN + Vanilla JS inside <script>). ABSOLUTELY NEVER truncate the file. Ensure </script> and </html> are completely closed.\n2. Build exactly what ui_ux_spec describes. Do not add features it does not list (e.g. history, statistics, localStorage).\n3. Follow every rule in platform_facts (part of your input) exactly. Call only the routes in api_endpoints_to_consume with their exact method, path and response field names. If a request fails, show a visible error state.\n4. Output raw JSON without markdown wraps: {\"files\":[{\"path\":\"index.html\",\"content\":\"<!DOCTYPE html>...\"}]}\n\nMODE HANDLING:\nYour input JSON includes a \"mode\" field.\n- mode absent or \"build\": ignore this section entirely, follow all rules above exactly as always (full rebuild from spec).\n- mode: \"correction\": you receive \"files_to_patch\", an array of objects with \"path\", \"current_content\", and \"instruction\". For EACH entry, apply ONLY the described change to that file's current_content and output the fully corrected file content. Do NOT output any file that is not listed in files_to_patch. Do NOT rewrite, refactor, restructure, or \"improve\" anything beyond exactly what the instruction describes. The output format is otherwise unchanged (the same \"files\" JSON array as always), just containing only the patched file(s)."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1040,
+        -96
+      ],
+      "id": "f390322b-c2a3-4b79-970d-f5b4a409f5fc",
+      "name": "Dev_Frontend",
+      "retryOnFail": true,
+      "waitBetweenTries": 4000
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.backend_payload }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are a Principal Backend & Systems Engineer specializing in robust, asynchronous REST APIs, scalable service architectures, and production-ready Python services.\n\nYour sole job is to produce complete, secure, and deployment-ready backend code strictly adhering to the architectural specification provided by the Product Owner.\n\nCRITICAL OPERATIONAL RULES:\n1. Strict Schema Adherence: Strictly follow the response_schema and models defined in the Product Owner specification. Do NOT invent, omit, or add arbitrary fields unless explicitly required by the schema. Validate all inputs strictly (e.g. min_length for strings, gt=0 for path IDs).\n2. Complete Deliverables: Never output placeholders, stubs, snippets, or truncated files. Every file must be fully written and directly executable.\n3. Dependencies: Provide a fully specified requirements.txt with valid, pinned or minimum version strings (e.g. fastapi>=0.110.0, uvicorn>=0.28.0, pydantic>=2.0.0).\n4. Code Quality & Security: Implement robust error handling, proper HTTP status codes and structured logging.\n5. Packaging: When required, provide clean, runnable configurations without hardcoded secrets.\n6. Platform: follow every rule in platform_facts (part of your input) exactly. index.html is a separate file written by the frontend agent and placed next to main.py.\n\n\nMODE HANDLING:\nYour input JSON includes a \"mode\" field.\n- mode absent or \"build\": ignore this section entirely, follow all rules above exactly as always (full rebuild from spec).\n- mode: \"correction\": you receive \"files_to_patch\", an array of objects with \"path\", \"current_content\", and \"instruction\". For EACH entry, apply ONLY the described change to that file's current_content and output the fully corrected file content. Do NOT output any file that is not listed in files_to_patch. Do NOT rewrite, refactor, restructure, or \"improve\" anything beyond exactly what the instruction describes. The output format is otherwise unchanged (the same \"files\" JSON array as always), just containing only the patched file(s).\n\nOUTPUT FORMAT:\nOutput ONLY valid, parseable JSON matching the following schema. Do NOT wrap in markdown backticks.\n\n{\n  \"files\": [\n    {\n      \"path\": \"main.py\",\n      \"content\": \"...\"\n    },\n    {\n      \"path\": \"requirements.txt\",\n      \"content\": \"...\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1024,
+        -592
+      ],
+      "id": "241ec44c-e069-4d20-861c-6065d2a7a5a5",
+      "name": "Dev_Backend",
+      "retryOnFail": true,
+      "waitBetweenTries": 4000
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1440,
+        -80
+      ],
+      "id": "d38672d1-d1a5-456e-932c-8022cc313777",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.6-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1552,
+        512
+      ],
+      "id": "b880d641-e237-4d01-9e0b-4b53848f3f87",
+      "name": "Google Gemini Chat Model3",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "8f792447-d62d-470b-9dd5-6bf10958600d",
+              "leftValue": "={{ (() => {\n  const text = $json.output || $json.text || \"\";\n  const match = text.match(/\"status\"\\s*:\\s*\"([^\"]+)\"/i);\n  return match ? match[1].trim().toUpperCase() === \"APPROVED\" : false;\n})() }}",
+              "rightValue": "APPROVED",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1792,
+        -64
+      ],
+      "id": "82dff4b6-6440-4172-8a77-5e7cfb1b0975",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "# IDENTITY & ROLE\nYou are the Principal \"Product Owner & Lead Systems Analyst\" of the Autonomous AI Software Factory.\nYour mission: transform vague user ideas into precise, buildable architectures and machine-readable JSON project plans for a team of downstream specialist agents (Backend, Frontend, QA & Security Gatekeeper). You write NO application code. Your core competency is complete, unambiguous specification — every field you emit becomes a binding contract for agents that cannot ask you follow-up questions.\n \n# PLATFORM CONSTRAINTS (fixed, not negotiable)\nEvery app is generated by a fixed pipeline and deployed on a fixed platform. Your specification and every option you offer must fit it.\n\nFixed platform:\n- Stack: FastAPI (Python 3.11) backend + one single index.html (HTML5 + Vanilla JS + Tailwind CSS via CDN). No other language, framework or build step (no Node.js/Express, React, Vue, npm, TypeScript).\n- Files: exactly main.py, requirements.txt and index.html (README.md and .env.example are added automatically). No further source files (no app.js, styles.css, templates/, static/, config.py).\n- Deployment: the pipeline writes its own fixed Dockerfile (python:3.11-slim) and runs one container per app. No own Dockerfile, no docker-compose, no reverse proxy or HTTPS setup.\n- Configuration: the container starts without environment variables or secrets; the app must run with built-in defaults. No external services (no PostgreSQL, Redis, SMTP, message queues).\n- Data: in-memory, or a SQLite file inside the container. A SQLite file does not survive a redeploy (no volume).\n\nPlatform facts (passed verbatim to the developer and QA agents as platform_facts; your specification must never contradict them):\n- Same origin: index.html and the API are served by the same FastAPI app on the same port. Do not add CORSMiddleware.\n- main.py serves index.html at GET / via FileResponse(Path(__file__).parent / 'index.html') (from pathlib import Path; from fastapi.responses import FileResponse). Never embed HTML in main.py. GET / must answer with a status below 400.\n- The frontend calls only the specified API routes with relative paths (e.g. fetch('/api/...')). It never mocks, intercepts or overrides fetch and never fabricates API data in the browser.\n- API data and user input reach the DOM only via textContent, createElement or .value; innerHTML only for static markup.\n- No polling (setInterval/refresh loops) unless the specification explicitly asks for live updates.\n- Python route handlers use 'async def' or 'def'.\n- The app runs in Docker as 'uvicorn main:app --host 0.0.0.0 --port 8000'; host and port are fixed by the container.\n- platform_facts override any conflicting specification item.\n\nRules for you:\n- Never offer options outside the platform (e.g. Node.js instead of FastAPI, an own Docker setup). \"2 concrete options\" means two options within the platform (e.g. in-memory vs. SQLite file).\n- If the user asks for something outside the platform (e.g. Node.js, React, CORS, docker-compose, environment configuration), say so openly in DISCOVERY: name the limit in one sentence and offer the platform solution. Never drop, replace or ignore such a wish silently.\n- If you offer SQLite, state that the database file does not survive a redeploy (no volume).\n- Never specify CORS/CORSMiddleware, StaticFiles mounts, Jinja2 templates or HTML embedded in main.py, neither in developer_spec nor as a qa_spec check. index.html is served at GET / via FileResponse.\n \n# OPERATIONAL PROTOCOL (State Machine)\nYou move strictly through three sequential phases:\n \n## PHASE 1: DISCOVERY\n- Analyze the user's input for feasibility, consistency, and gaps.\n- Check these core criteria:\n  1. Target audience & core value (what primary problem is being solved?)\n  2. Data model (which entities/tables exist? e.g. User, Tickets, Vehicles)\n  3. Workflows & state transitions (what happens from start to finish?)\n  4. Technical interfaces (API routes; data in-memory or SQLite file). Stack and hosting are fixed, see PLATFORM CONSTRAINTS: never ask about them.\n  5. Non-functional requirements (security, GDPR/legal, performance)\n- RULE: Ask at most 2-3 targeted, highly relevant follow-up questions per response.\n- RULE: For technical decisions, always offer 2 concrete options with a recommendation to reduce cognitive load. Both options must fit the PLATFORM CONSTRAINTS.\n- RULE: If the user requests a feature that a single-shot, non-iterative code-generation pipeline cannot deliver safely or completely in one pass (e.g. production-grade authentication with password-reset/email flows, payment processing, multi-tenant permission systems, anything requiring persistent database migrations across runs), flag this explicitly and propose a scoped-down MVP substitute (e.g. a single shared access token instead of full user accounts). Do not silently pass an unrealistic requirement downstream — the Dev agents will attempt to build exactly what you specify, without judgment.\n- End every response in this phase with: STATUS: DISCOVERY | Offene Punkte: [count]\n \n## PHASE 2: SCOPE FREEZE\n- Once all 5 core criteria are clarified, produce a structured \"Executive Summary\":\n  - Goal & MVP definition (must-haves)\n  - Out of scope (won't-haves — what are we explicitly NOT building yet?)\n  - Data & architecture overview\n- Explicitly prompt the user for approval: \"Bitte bestätige den Scope mit einem 'GO', um die Aufgaben an das Entwickler-Team zu delegieren.\"\n- End every response in this phase with: STATUS: AWAITING_APPROVAL\n \n## PHASE 3: ORCHESTRATION (JSON Project Plan)\n- ONLY AFTER an explicit \"GO\" from the user do you move into this phase.\n- If the incoming context contains a revision_context object (populated by the pipeline after a QA REJECTED verdict on a prior run of this same project_id), treat this as a targeted revision, not a fresh build: read revision_context.issues and revision_context.suggested_patches, and adjust only the affected parts of architecture_spec / developer_spec / ui_ux_spec accordingly. State in 1 sentence (outside the JSON, before it) which issues you addressed.\n- Output ONLY a valid, unformatted JSON code block containing the subtasks for the specialist sub-workflows. Every field is a binding contract — be exact and concrete, never vague placeholders like \"standard REST endpoints\".\n \nSchema:\n{\n  \"project_id\": \"string\",\n  \"project_name\": \"string\",\n  \"revision_of\": \"string | null\",\n  \"architecture_spec\": {\n    \"stack\": \"string, e.g. FastAPI (Python) + Vanilla JS/Tailwind CDN\",\n    \"database\": \"string, e.g. none / SQLite file / in-memory\",\n    \"api_routes\": [\n      {\n        \"method\": \"GET | POST | PUT | DELETE\",\n        \"path\": \"string, e.g. /api/metrics\",\n        \"request_schema\": \"object | null\",\n        \"response_schema\": \"object — exact field names and types\",\n        \"description\": \"string\"\n      }\n    ]\n  },\n  \"ui_ux_spec\": {\n    \"theme\": \"string\",\n    \"components\": [\"string, ...\"],\n    \"screens\": [\"string, ...\"],\n    \"consumes_routes\": [\"array of api_routes.path values this UI actually calls\"]\n  },\n  \"developer_spec\": {\n    \"business_logic\": [\"string, ...\"],\n    \"dependencies\": [\"string, ...\"]\n  },\n  \"compliance_spec\": {\n    \"gdpr_points\": [\"string, ...\"],\n    \"audit_requirements\": [\"string, ...\"],\n    \"_note\": \"Informational only — not yet consumed by an active agent in this pipeline. Reserved for the planned Compliance-Agent (Roadmap Phase 2).\"\n  },\n  \"qa_spec\": {\n    \"test_scenarios\": [\"string — concrete functional scenarios the QA Gatekeeper should verify\"],\n    \"security_checks\": [\"string — concrete, app-specific security risks given this app's actual inputs\"]\n  }\n}\n \n- Before emitting the JSON, silently self-check: every path in ui_ux_spec.consumes_routes exists in architecture_spec.api_routes; qa_spec.security_checks includes at least one check specific to this app's actual user inputs (not a generic boilerplate list).\n- End every response in this phase with: STATUS: DELEGATED\n \n# TONE & STYLE\n- Professional, analytical, direct, solution-oriented.\n- No small talk, no redundant introductions.\n- Politely but firmly question illogical assumptions, acting as a technical sparring partner."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "1bfec98b-75cd-492c-86eb-8bd20b0635c0",
+      "name": "Product Owner",
+      "retryOnFail": true,
+      "waitBetweenTries": 4000
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.qa_input_payload }}",
+        "options": {
+          "systemMessage": "You are a Principal Software Quality Assurance & Security Gatekeeper. You judge the generated source files; you never rewrite application code. The files you approve are deployed exactly as delivered.\n\nInput:\nYou receive architecture_spec, developer_spec and qa_spec from the Product Owner, platform_facts (binding rules of the deployment platform), and the source files produced by the Frontend and Backend agents.\n\nAudit Criteria:\n1. Contract: frontend calls and backend routes match architecture_spec.api_routes exactly (method, path, request and response fields).\n2. Platform: every rule in platform_facts is met.\n3. Business logic: developer_spec.business_logic is implemented.\n4. qa_spec: every item in qa_spec.test_scenarios and qa_spec.security_checks is satisfied or listed as an issue.\n5. Integrity: no placeholders or TODOs, valid Python syntax, every import covered by requirements.txt.\n6. Security: no hardcoded secrets, tokens, credentials or private IPs; no DOM insertion of API or user data via innerHTML; every request body field is validated.\n\nDecision Rules:\n- A change is necessary ONLY for: a violation of the contract (architecture_spec.api_routes), of platform_facts, of developer_spec.business_logic or of qa_spec; a security flaw; or a functional defect (the app would not work as specified).\n- Any necessary change -> \"status\": \"REJECTED\", one entry per problem in \"issues\": {\"file\": \"...\", \"issue\": \"...\", \"patch\": \"concrete, minimal code change\"}. Never approve code that needs a change, and never make the change yourself.\n- Style, naming and optional improvements are never a reason to reject; mention them briefly in \"review_summary\" only.\n- Only if no change is necessary -> \"status\": \"APPROVED\" with an empty \"issues\" array.\n- Never request anything that platform_facts rule out (e.g. CORS middleware) and never request features beyond the specification.\n- README.md and .env.example are produced by you (see Release Artifacts). Their absence in the input is never a reason to reject.\n- If the input includes a revision_context, check whether each previously listed issue was resolved; do not repeat resolved issues.\n- Always populate \"chat_summary\" with a short, plain-language message (1-3 sentences, no JSON/code) for the end user in the chat; it must make sense standalone.\n\nRelease Artifacts (only for APPROVED):\n- README.md: crisp Setup, Run and Architecture sections for this app.\n- .env.example: only variables that main.py actually reads via os.getenv, with dummy values. If main.py reads none, the single line \"# No environment variables required\". Host and port are fixed by the container.\n\nOutput Format:\nYou MUST output ONLY a valid JSON object. No Markdown code fences, no conversational preamble, no closing text.\n\"files\" contains ONLY README.md and .env.example (for REJECTED: an empty array). Never include application code files.\nSchema:\n{\n  \"status\": \"APPROVED\",\n  \"chat_summary\": \"string - short, human-readable status message for the end user\",\n  \"review_summary\": \"string - what was verified\",\n  \"issues\": [],\n  \"files\": [\n    { \"path\": \"README.md\", \"content\": \"# Project Title\\n\\n## Setup\\n...\" },\n    { \"path\": \".env.example\", \"content\": \"# No environment variables required\\n\" }\n  ]\n}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1552,
+        256
+      ],
+      "id": "1efca110-a07e-4de9-86dc-b7530556532f",
+      "name": "QA_Gatekeeper",
+      "retryOnFail": true,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputItem = $input.first();\nconst item = inputItem.json;\n\n// SSH/Deploy-Fehler ueber den Error-Output erkennen (echter Node-Crash, fail-closed).\nconst executionError = inputItem.error || item.error;\n\n// Build-Fehlschlag ueber das SSH-Node-Datenformat erkennen: Check_Build_Exit_Code\n// leitet nicht-0-Exit-Codes ueber einen normalen IF-Zweig weiter (kein Node-Error!),\n// das Item hat dann { code, stdout, stderr } statt QA_Gatekeeper's { output/text }.\nconst isBuildFailure = !executionError && typeof item.code === 'number';\n\nlet summary = '';\nlet formattedIssues = '';\nlet title = '';\n\nif (executionError) {\n  title = 'Deploy fehlgeschlagen (unerwarteter Fehler)';\n  summary = (typeof executionError === 'string')\n    ? executionError\n    : (executionError.message || JSON.stringify(executionError));\n} else if (isBuildFailure) {\n  const stderrAll = (item.stderr || '').trim();\n  const stdoutAll = (item.stdout || '').trim();\n  // Health-Check nach dem Start (Punkt A, 23.09.): Build_Command_Builder schreibt bei Fehlschlag einen Marker + Log-Auszug.\n  const hcIdx = stderrAll.indexOf('HEALTHCHECK_FAILED:');\n  if (hcIdx !== -1) {\n    title = 'Deploy fehlgeschlagen: App nicht funktionsfähig (Health-Check)';\n    const hcLines = stderrAll.substring(hcIdx).split('\\n');\n    const hcHead = hcLines[0].replace('HEALTHCHECK_FAILED:', '').trim();\n    const hcLog = hcLines.slice(1).join('\\n').trim();\n    summary = `${hcHead}\\n\\nDer Build war erfolgreich, aber die App startet nicht, stürzt ab oder antwortet auf / mit einem Fehlerstatus (4xx/5xx, z. B. 404 bei fehlender Startseite). Der Container bleibt zur Fehlersuche stehen, es wurde kein GitHub-Repo angelegt.${hcLog ? '\\n\\n**Log-Auszug:**\\n```\\n' + hcLog + '\\n```' : ''}`;\n  } else {\n    title = `Deploy fehlgeschlagen (Build_And_Run, Exit Code ${item.code})`;\n    // Seit dem '&&'-Fix enthält stderr bei Build-Fehlern das komplette Build-Log -> nur die letzten 40 Zeilen zeigen.\n    const raw = stderrAll || stdoutAll;\n    const lines = raw.split('\\n');\n    summary = raw\n      ? (lines.length > 40 ? '(gekürzt, letzte 40 Zeilen)\\n```\\n' + lines.slice(-40).join('\\n') + '\\n```' : raw)\n      : 'Kein stdout/stderr vom Build-Befehl erhalten.';\n  }\n} else {\n  title = 'QA-Pruefung fehlgeschlagen (REJECTED)';\n  let rawContent = item.output || item.text || item.response || item;\n\n  if (typeof rawContent === 'string') {\n    try {\n      const cleaned = rawContent.replace(/```json/g, '').replace(/```/g, '').trim();\n      rawContent = JSON.parse(cleaned);\n    } catch (e) {\n      rawContent = { chat_summary: rawContent, issues: [] };\n    }\n  }\n\n  summary = rawContent.chat_summary || 'Build durch QA-Gatekeeper abgelehnt.';\n\n  if (Array.isArray(rawContent.issues)) {\n    formattedIssues = rawContent.issues.map(iss => {\n      if (typeof iss === 'string') return iss;\n      return `${iss.file ? `[${iss.file}] ` : ''}${iss.issue || iss.message || JSON.stringify(iss)}`;\n    }).join('\\n- ');\n  }\n}\n\nconst message = `❌ **${title}**\\n\\n${summary}${formattedIssues ? '\\n\\n**Festgestellte Probleme:**\\n- ' + formattedIssues : ''}`;\n\nreturn [{\n  json: {\n    response: message,\n    output: message\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1904,
+        272
+      ],
+      "id": "a1d8e4bf-6496-413f-b036-4eb1de10b42c",
+      "name": "Format_Reject_Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfunction sanitizeCtrl(t){let r=\"\";let inStr=false;let esc=false;for(let i=0;i<t.length;i++){const c=t[i];const cc=t.charCodeAt(i);if(inStr){if(esc){r+=c;esc=false;}else if(cc===92){r+=c;esc=true;}else if(cc===34){r+=c;inStr=false;}else if(cc===10){r+=\"\\\\n\";}else if(cc===13){r+=\"\\\\r\";}else if(cc===9){r+=\"\\\\t\";}else{r+=c;}}else{if(cc===34){inStr=true;}r+=c;}}return r;}\n\nconst VALID_ESC = { '\"': '\"', '\\\\': '\\\\', '/': '/', b: '\\b', f: '\\f', n: '\\n', r: '\\r', t: '\\t' };\n// Toleranter JSON-String-Decoder: gültige Escapes wie JSON; ungültige Escape-Sequenzen (z. B. \\d, \\', \\$) bleiben als Backslash+Zeichen erhalten.\nfunction lenientUnescape(s) {\n  let out = '';\n  for (let i = 0; i < s.length; i++) {\n    const c = s[i];\n    if (c !== '\\\\') { out += c; continue; }\n    const n = s[i + 1];\n    if (n === undefined) { out += '\\\\'; break; }\n    if (n === 'u' && /^[0-9a-fA-F]{4}$/.test(s.slice(i + 2, i + 6))) { out += String.fromCharCode(parseInt(s.slice(i + 2, i + 6), 16)); i += 5; continue; }\n    if (Object.prototype.hasOwnProperty.call(VALID_ESC, n)) { out += VALID_ESC[n]; i += 1; continue; }\n    out += '\\\\' + n; i += 1;\n  }\n  return out;\n}\n\nfunction isUnsafePath(p) {\n  const norm = String(p).replace(/\\\\/g, '/').replace(/^\\/+/, '');\n  return norm === '' || norm.split('/').some(seg => seg === '..') || /^[A-Za-z]:/.test(norm) || norm.indexOf('\\u0000') !== -1;\n}\n\n// opts.forceTolerant: nur für Tests (Stufe 2 auch bei gültigem JSON erzwingen)\nfunction extractFiles(rawText, opts) {\n  const o = opts || {};\n  const res = { files: [], method: 'none', plausible: false, problems: [], warnings: [], truncated: false, truncatedPath: null, expected: 0 };\n  const text = String(rawText === undefined || rawText === null ? '' : rawText);\n  const first = text.indexOf('{');\n  if (first === -1) { res.problems.push('kein JSON-Objekt im Text gefunden'); return res; }\n  const last = text.lastIndexOf('}');\n  const cand = last > first ? text.slice(first, last + 1) : text.slice(first);\n  const tail = text.slice(first);\n  const structural = (tail.match(/\\{\\s*\"path\"\\s*:\\s*\"[^\"]*\"\\s*,\\s*\"content\"\\s*:\\s*\"/g) || []).length;\n\n  // Stufe 1: striktes JSON\n  if (!o.forceTolerant) {\n    try {\n      const parsed = JSON.parse(sanitizeCtrl(cand));\n      const arr = parsed && Array.isArray(parsed.files) ? parsed.files : null;\n      if (arr) {\n        res.files = arr.map(f => ({ path: String((f && (f.path || f.filename)) || ''), content: typeof (f && f.content) === 'string' ? f.content : '' }));\n        res.method = 'json';\n        res.expected = arr.length;\n      } else { res.warnings.push('gültiges JSON, aber kein files-Array – wechsle zur toleranten Extraktion'); }\n    } catch (e) { /* weiter mit Stufe 2 */ }\n  }\n\n  // Stufe 2: tolerante Einzeldatei-Extraktion\n  if (res.method === 'none') {\n    // Eintragsende = ein UNESCAPTES \" (gerade Anzahl Backslashes davor), gefolgt von \"}\" und danach entweder \", {\"path\":\" (nächster Eintrag) oder \"]\" (Array-Ende).\n    // Rohe/falsch escapte \" im Inhalt (z. B. `\\\"\"`, verbatim eingebettete Codeblöcke) und escaptes JSON im Inhalt (`\\\"}]`) beenden den Eintrag damit nicht.\n    const startRe = /\\{\\s*\"path\"\\s*:\\s*\"([^\"]+)\"\\s*,\\s*\"content\"\\s*:\\s*\"/g;\n    const endRe = /^\\s*\\}(?=\\s*(?:,\\s*\\{\\s*\"path\"\\s*:|\\]))/;\n    const files = [];\n    let sm, lastEnd = -1, incompletePath = null;\n    while ((sm = startRe.exec(tail)) !== null) {\n      const contentStart = startRe.lastIndex;\n      let i = contentStart, endIdx = -1, contentEnd = -1;\n      for (;;) {\n        const q = tail.indexOf('\"', i);\n        if (q === -1) break;\n        let bs = 0; for (let k = q - 1; k >= 0 && tail[k] === '\\\\'; k--) bs++;\n        if (bs % 2 === 0) {\n          const em = endRe.exec(tail.slice(q + 1, q + 1 + 400));\n          if (em) { endIdx = q + 1 + em[0].length; contentEnd = q; break; }\n        }\n        i = q + 1;\n      }\n      if (endIdx === -1) { incompletePath = sm[1]; break; }\n      files.push({ path: lenientUnescape(sm[1]), content: lenientUnescape(tail.slice(contentStart, contentEnd)) });\n      lastEnd = endIdx; startRe.lastIndex = endIdx;\n    }\n    res.files = files; res.method = files.length ? 'tolerant' : 'none'; res.expected = structural;\n    const remainder = lastEnd === -1 ? tail : tail.slice(lastEnd);\n    if (incompletePath === null && lastEnd !== -1 && /^\\s*\\]/.test(remainder)) {\n      // Array ordnungsgemäß geschlossen -> Struktur vollständig\n    } else if (structural > 0) {\n      res.truncated = true; res.truncatedPath = incompletePath;\n    }\n  }\n\n  // Stufe 3: Plausibilität (problems = hart -> Retry/fail-closed; warnings = nur Hinweis)\n  if (res.files.length === 0) res.problems.push('keine Dateien extrahierbar');\n  if (res.method === 'tolerant' && res.expected !== res.files.length) res.problems.push('Anzahl: ' + res.files.length + ' extrahiert, ' + res.expected + ' erwartet');\n  if (res.truncated) res.problems.push('Ausgabe unvollständig/abgeschnitten' + (res.truncatedPath ? ' (Datei ' + res.truncatedPath + ' nicht abgeschlossen)' : ''));\n  for (const f of res.files) {\n    if (isUnsafePath(f.path)) res.problems.push('unsicherer oder leerer Pfad: ' + JSON.stringify(f.path));\n    if (!f.content || !f.content.trim()) res.problems.push('leerer Inhalt: ' + f.path);\n    if (/\\.html?$/i.test(f.path) && !/<\\/html>/i.test(f.content)) res.warnings.push('HTML ohne </html>: ' + f.path);\n  }\n  res.plausible = res.problems.length === 0;\n  return res;\n}\n\n// Punkt H, Variante B (24.09.): deployt wird die Dev-Fassung (letzter Aggregate_Files-Lauf), die die QA geprüft hat.\n// Aus der QA-Ausgabe kommen nur README.md und .env.example; von der QA mitgelieferter Code wird ignoriert (und vermerkt).\nconst RELEASE_FILES = [\"README.md\", \".env.example\"];\nconst REQUIRED_DEV_FILES = [\"index.html\", \"main.py\", \"requirements.txt\"];\nconst normPath = (p) => String(p || \"\").replace(/\\\\/g, \"/\").replace(/^\\/+/g, \"\");\n\nlet devFiles = null;\ntry { devFiles = $(\"Aggregate_Files\").first().json.files; } catch (e) { devFiles = null; }\nif (!Array.isArray(devFiles)) {\n  throw new Error(\"Dev-Fassung (Aggregate_Files) nicht lesbar – Abbruch (fail-closed).\");\n}\nconst devByPath = new Map(devFiles.map(f => [normPath(f.path), f.content]));\nconst missingDev = REQUIRED_DEV_FILES.filter(p => !devByPath.has(p) || !String(devByPath.get(p) || \"\").trim());\nif (missingDev.length) {\n  throw new Error(`Dev-Fassung unvollständig (fehlt/leer: ${missingDev.join(\", \")}) – Abbruch (fail-closed).`);\n}\nfor (const p of devByPath.keys()) {\n  if (isUnsafePath(p)) throw new Error(`Dev-Fassung mit unsicherem Pfad ${JSON.stringify(p)} – Abbruch (fail-closed).`);\n}\n\nconst item = items[0];\nconst rawText = (item && (item.json.output || item.json.text)) || \"\";\nconst ex = extractFiles(rawText);\nif (!ex.plausible) {\n  throw new Error(`QA-Output nicht zuverlässig lesbar (${ex.problems.join(\"; \")}) – Abbruch (fail-closed) statt stillschweigend unvollständigem Deploy.`);\n}\nconst qaRelease = new Map();\nconst qaIgnored = [];\nfor (const f of ex.files) {\n  const p = normPath(f.path);\n  if (RELEASE_FILES.includes(p)) qaRelease.set(p, f.content || \"\");\n  else qaIgnored.push(p);\n}\n\nconst finalFiles = [];\nfor (const [p, content] of devByPath) {\n  if (RELEASE_FILES.includes(p) && qaRelease.has(p)) continue; // Release-Artefakte der QA haben Vorrang\n  finalFiles.push({ path: p, content: content || \"\", source: \"dev\" });\n}\nfor (const [p, content] of qaRelease) finalFiles.push({ path: p, content, source: \"qa\" });\n\nfor (const f of finalFiles) {\n  results.push({\n    json: { file_name: f.path, parse_method: ex.method, source: f.source, qa_code_files_ignored: qaIgnored },\n    binary: {\n      data: await this.helpers.prepareBinaryData(\n        Buffer.from(f.content, \"utf-8\"),\n        f.path\n      )\n    }\n  });\n}\n\nif (results.length === 0) {\n  throw new Error(\"Keine Dateien im files-Array des QA-Gatekeepers gefunden. Überprüfe das Raw-Format.\");\n}\n\nreturn results;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1968,
+        -80
+      ],
+      "id": "1e710459-6488-4d6f-89a2-7c023a595144",
+      "name": "Prepare_Disk_Files"
+    },
+    {
+      "parameters": {
+        "jsCode": "const firstItem = $input.first().json;\nconst summary = firstItem.chat_summary || 'Alle Dateien wurden im Staging-Ordner gespeichert und der Dienst neu gestartet.';\n\nconst buildInfo = $('Build_Command_Builder').first().json;\nconst dockerSrvIp = $('Config').first().json.docker_srv_ip;\nconst appUrl = `http://${dockerSrvIp}:${buildInfo.port}/`;\n\nconst message = `✅ **Build & QA erfolgreich abgeschlossen!**\\n\\n${summary}\\n\\n🔗 **Live auf Staging:** [${appUrl}](${appUrl})`;\n\nreturn [{\n  json: {\n    response: message,\n    output: message\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        480
+      ],
+      "id": "694b9caf-687f-458b-98ec-af154b232a81",
+      "name": "Format_Success_Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Text aus dem Product Owner Node extrahieren\nconst rawOutput = $json.output || $json.text || \"\";\n\n// 2. Markdown-Fences entfernen & JSON-Block isolieren\nlet cleaned = rawOutput.replace(/```json/gi, \"\").replace(/```/gi, \"\").trim();\n\nconst firstBrace = cleaned.indexOf('{');\nconst lastBrace = cleaned.lastIndexOf('}');\n\nlet spec = {};\nif (firstBrace !== -1 && lastBrace !== -1) {\n  try {\n    spec = JSON.parse(cleaned.substring(firstBrace, lastBrace + 1));\n  } catch (e) {\n    spec = {};\n  }\n}\n\n// 3. Dynamische Werte mit sauberen Fallbacks\nconst projectName = spec.project_name || \"Dynamische Applikation\";\nconst archSpec = spec.architecture_spec || {};\nconst uiSpec = spec.ui_ux_spec || {};\nconst qaSpec = spec.qa_spec || {};\n// Punkt C (24.09.): developer_spec + qa_spec gehen jetzt auch an die Dev-Agenten (vorher nur an die QA)\nconst devSpec = spec.developer_spec || {};\nconst endpoints = archSpec.api_routes || [\"GET /api/data\"];\n\n// 3b. Projekt-Slug generieren (Baustein 1, Multi-Projekt-Umbau)\n// Slug = App-Name (kleingeschrieben, Sonderzeichen -> Bindestrich) + kurzer Zufalls-Hash,\n// damit jedes Projekt spaeter einen eigenen Ordner/Container/Repo-Namen bekommt.\nfunction slugify(text) {\n  return text\n    .toString()\n    .toLowerCase()\n    .normalize('NFKD')\n    .replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/[^a-z0-9]+/g, '-')\n    .replace(/^-+|-+$/g, '') || 'projekt';\n}\nconst shortHash = Math.random().toString(16).slice(2, 8);\nconst projectSlug = `${slugify(projectName)}-${shortHash}`;\n\n// Punkt H (24.09.) / Punkt I (26.09.): Plattform-Fakten für Dev_Frontend, Dev_Backend und QA_Gatekeeper.\n// Quelle: platform_facts.js. Wörtliche Kopie im Product-Owner-Prompt (# PLATFORM CONSTRAINTS), Drift-Test: test_po_facts_offline.js\nconst PLATFORM_FACTS = [\n  \"Same origin: index.html and the API are served by the same FastAPI app on the same port. Do not add CORSMiddleware.\",\n  \"main.py serves index.html at GET / via FileResponse(Path(__file__).parent / 'index.html') (from pathlib import Path; from fastapi.responses import FileResponse). Never embed HTML in main.py. GET / must answer with a status below 400.\",\n  \"The frontend calls only the specified API routes with relative paths (e.g. fetch('/api/...')). It never mocks, intercepts or overrides fetch and never fabricates API data in the browser.\",\n  \"API data and user input reach the DOM only via textContent, createElement or .value; innerHTML only for static markup.\",\n  \"No polling (setInterval/refresh loops) unless the specification explicitly asks for live updates.\",\n  \"Python route handlers use 'async def' or 'def'.\",\n  \"The app runs in Docker as 'uvicorn main:app --host 0.0.0.0 --port 8000'; host and port are fixed by the container.\",\n  \"platform_facts override any conflicting specification item.\",\n];\n// 4. Payloads für Backend, Frontend & Durchreichung schnüren\nreturn [\n  {\n    json: {\n      raw_spec: spec,\n      project_name: projectName,\n      project_slug: projectSlug,\n      architecture_spec: archSpec,\n      qa_spec: qaSpec,\n      platform_facts: PLATFORM_FACTS,\n\n      backend_payload: JSON.stringify({\n        task: `Build complete FastAPI backend for: ${projectName}`,\n        architecture_spec: archSpec,\n        required_endpoints: endpoints,\n        files_to_generate: [\"main.py\", \"requirements.txt\"],\n        developer_spec: devSpec,\n        qa_spec: qaSpec,\n        platform_facts: PLATFORM_FACTS\n      }),\n\n      frontend_payload: JSON.stringify({\n        task: `Build single-file index.html for: ${projectName}`,\n        ui_ux_spec: uiSpec,\n        required_files: [\"index.html\"],\n        api_endpoints_to_consume: endpoints,\n        developer_spec: devSpec,\n        qa_spec: qaSpec,\n        platform_facts: PLATFORM_FACTS\n      })\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        -96
+      ],
+      "id": "bdad97e0-cc49-4298-b11f-4914c7af7642",
+      "name": "Format_Dev_Payload"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.6-flash",
+        "options": {
+          "maxOutputTokens": 32768
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1024,
+        -352
+      ],
+      "id": "34f83d61-066b-4b71-93a5-5ad676b606ad",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let allFiles = [];\nlet parseErrors = [];\n\nfunction sanitizeCtrl(t){let r=\"\";let inStr=false;let esc=false;for(let i=0;i<t.length;i++){const c=t[i];const cc=t.charCodeAt(i);if(inStr){if(esc){r+=c;esc=false;}else if(cc===92){r+=c;esc=true;}else if(cc===34){r+=c;inStr=false;}else if(cc===10){r+=\"\\\\n\";}else if(cc===13){r+=\"\\\\r\";}else if(cc===9){r+=\"\\\\t\";}else{r+=c;}}else{if(cc===34){inStr=true;}r+=c;}}return r;}\n\nconst VALID_ESC = { '\"': '\"', '\\\\': '\\\\', '/': '/', b: '\\b', f: '\\f', n: '\\n', r: '\\r', t: '\\t' };\n// Toleranter JSON-String-Decoder: gültige Escapes wie JSON; ungültige Escape-Sequenzen (z. B. \\d, \\', \\$) bleiben als Backslash+Zeichen erhalten.\nfunction lenientUnescape(s) {\n  let out = '';\n  for (let i = 0; i < s.length; i++) {\n    const c = s[i];\n    if (c !== '\\\\') { out += c; continue; }\n    const n = s[i + 1];\n    if (n === undefined) { out += '\\\\'; break; }\n    if (n === 'u' && /^[0-9a-fA-F]{4}$/.test(s.slice(i + 2, i + 6))) { out += String.fromCharCode(parseInt(s.slice(i + 2, i + 6), 16)); i += 5; continue; }\n    if (Object.prototype.hasOwnProperty.call(VALID_ESC, n)) { out += VALID_ESC[n]; i += 1; continue; }\n    out += '\\\\' + n; i += 1;\n  }\n  return out;\n}\n\nfunction isUnsafePath(p) {\n  const norm = String(p).replace(/\\\\/g, '/').replace(/^\\/+/, '');\n  return norm === '' || norm.split('/').some(seg => seg === '..') || /^[A-Za-z]:/.test(norm) || norm.indexOf('\\u0000') !== -1;\n}\n\n// opts.forceTolerant: nur für Tests (Stufe 2 auch bei gültigem JSON erzwingen)\nfunction extractFiles(rawText, opts) {\n  const o = opts || {};\n  const res = { files: [], method: 'none', plausible: false, problems: [], warnings: [], truncated: false, truncatedPath: null, expected: 0 };\n  const text = String(rawText === undefined || rawText === null ? '' : rawText);\n  const first = text.indexOf('{');\n  if (first === -1) { res.problems.push('kein JSON-Objekt im Text gefunden'); return res; }\n  const last = text.lastIndexOf('}');\n  const cand = last > first ? text.slice(first, last + 1) : text.slice(first);\n  const tail = text.slice(first);\n  const structural = (tail.match(/\\{\\s*\"path\"\\s*:\\s*\"[^\"]*\"\\s*,\\s*\"content\"\\s*:\\s*\"/g) || []).length;\n\n  // Stufe 1: striktes JSON\n  if (!o.forceTolerant) {\n    try {\n      const parsed = JSON.parse(sanitizeCtrl(cand));\n      const arr = parsed && Array.isArray(parsed.files) ? parsed.files : null;\n      if (arr) {\n        res.files = arr.map(f => ({ path: String((f && (f.path || f.filename)) || ''), content: typeof (f && f.content) === 'string' ? f.content : '' }));\n        res.method = 'json';\n        res.expected = arr.length;\n      } else { res.warnings.push('gültiges JSON, aber kein files-Array – wechsle zur toleranten Extraktion'); }\n    } catch (e) { /* weiter mit Stufe 2 */ }\n  }\n\n  // Stufe 2: tolerante Einzeldatei-Extraktion\n  if (res.method === 'none') {\n    // Eintragsende = ein UNESCAPTES \" (gerade Anzahl Backslashes davor), gefolgt von \"}\" und danach entweder \", {\"path\":\" (nächster Eintrag) oder \"]\" (Array-Ende).\n    // Rohe/falsch escapte \" im Inhalt (z. B. `\\\"\"`, verbatim eingebettete Codeblöcke) und escaptes JSON im Inhalt (`\\\"}]`) beenden den Eintrag damit nicht.\n    const startRe = /\\{\\s*\"path\"\\s*:\\s*\"([^\"]+)\"\\s*,\\s*\"content\"\\s*:\\s*\"/g;\n    const endRe = /^\\s*\\}(?=\\s*(?:,\\s*\\{\\s*\"path\"\\s*:|\\]))/;\n    const files = [];\n    let sm, lastEnd = -1, incompletePath = null;\n    while ((sm = startRe.exec(tail)) !== null) {\n      const contentStart = startRe.lastIndex;\n      let i = contentStart, endIdx = -1, contentEnd = -1;\n      for (;;) {\n        const q = tail.indexOf('\"', i);\n        if (q === -1) break;\n        let bs = 0; for (let k = q - 1; k >= 0 && tail[k] === '\\\\'; k--) bs++;\n        if (bs % 2 === 0) {\n          const em = endRe.exec(tail.slice(q + 1, q + 1 + 400));\n          if (em) { endIdx = q + 1 + em[0].length; contentEnd = q; break; }\n        }\n        i = q + 1;\n      }\n      if (endIdx === -1) { incompletePath = sm[1]; break; }\n      files.push({ path: lenientUnescape(sm[1]), content: lenientUnescape(tail.slice(contentStart, contentEnd)) });\n      lastEnd = endIdx; startRe.lastIndex = endIdx;\n    }\n    res.files = files; res.method = files.length ? 'tolerant' : 'none'; res.expected = structural;\n    const remainder = lastEnd === -1 ? tail : tail.slice(lastEnd);\n    if (incompletePath === null && lastEnd !== -1 && /^\\s*\\]/.test(remainder)) {\n      // Array ordnungsgemäß geschlossen -> Struktur vollständig\n    } else if (structural > 0) {\n      res.truncated = true; res.truncatedPath = incompletePath;\n    }\n  }\n\n  // Stufe 3: Plausibilität (problems = hart -> Retry/fail-closed; warnings = nur Hinweis)\n  if (res.files.length === 0) res.problems.push('keine Dateien extrahierbar');\n  if (res.method === 'tolerant' && res.expected !== res.files.length) res.problems.push('Anzahl: ' + res.files.length + ' extrahiert, ' + res.expected + ' erwartet');\n  if (res.truncated) res.problems.push('Ausgabe unvollständig/abgeschnitten' + (res.truncatedPath ? ' (Datei ' + res.truncatedPath + ' nicht abgeschlossen)' : ''));\n  for (const f of res.files) {\n    if (isUnsafePath(f.path)) res.problems.push('unsicherer oder leerer Pfad: ' + JSON.stringify(f.path));\n    if (!f.content || !f.content.trim()) res.problems.push('leerer Inhalt: ' + f.path);\n    if (/\\.html?$/i.test(f.path) && !/<\\/html>/i.test(f.content)) res.warnings.push('HTML ohne </html>: ' + f.path);\n  }\n  res.plausible = res.problems.length === 0;\n  return res;\n}\n\nfor (const item of $input.all()) {\n  const rawText = item.json.text || item.json.message?.content || \"\";\n\n  // 1. Falls es schon fertige Objekte sind\n  if (item.json.files && Array.isArray(item.json.files)) {\n    allFiles.push(...item.json.files);\n    continue;\n  }\n  if (!rawText) continue;\n\n  // 2. Extraktor: striktes JSON -> tolerante Einzeldatei-Extraktion -> Plausibilität (keine Fences werden global entfernt)\n  const ex = extractFiles(rawText);\n  allFiles.push(...ex.files.map(f => ({ path: f.path, content: f.content })));\n  for (const p of ex.problems) parseErrors.push({ stage: \"extract_\" + ex.method, error: p, preview: rawText.substring(0, 200) });\n}\n\n// Revision-Loop: Zaehler + Merge mit vorherigem Dateistand (Punkt 5 Roadmap, Feedback-/Bugfix-Agent).\nlet revisionAttempt = 0;\ntry { revisionAttempt = $('Format_Correction_Payload').first().json.revision_attempt ?? 0; } catch (e) { revisionAttempt = 0; }\n\nlet finalFiles = allFiles;\nif (revisionAttempt > 0) {\n  let previousFiles = [];\n  try { previousFiles = $('Aggregate_Files').first().json.files || []; } catch (e) { previousFiles = []; }\n  const merged = [...previousFiles];\n  for (const patched of allFiles) {\n    const idx = merged.findIndex(f => f.path === patched.path);\n    if (idx >= 0) merged[idx] = patched; else merged.push(patched);\n  }\n  finalFiles = merged;\n}\n\n// Holen der Specs aus dem Workflow-Kontext (vom Product Owner oder vorherigen Schritten)\nlet architecture_spec = {};\nlet qa_spec = {};\nlet developer_spec = {};\nlet platform_facts = [];\ntry {\n  const poData = $('Format_Dev_Payload').first().json;\n  architecture_spec = poData.architecture_spec || {};\n  qa_spec = poData.qa_spec || {};\n  // Punkt H (24.09.): QA prüft auch gegen developer_spec und die Plattform-Fakten\n  developer_spec = (poData.raw_spec && poData.raw_spec.developer_spec) || {};\n  platform_facts = poData.platform_facts || [];\n  } catch (e) {\n    parseErrors.push({ stage: \"spec_lookup\", error: e.message });\n}\n\nconst payload = {\n  files: finalFiles,\n  architecture_spec: architecture_spec,\n  qa_spec: qa_spec,\n  developer_spec: developer_spec,\n  platform_facts: platform_facts,\n  parseErrors: parseErrors\n};\n\nreturn [{\n  json: {\n    files: finalFiles,\n    revision_attempt: revisionAttempt,\n    parseErrors: parseErrors,\n    qa_input_payload: JSON.stringify(payload)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        256
+      ],
+      "id": "6451923b-864e-4f69-a8bc-7884e9bd529e",
+      "name": "Aggregate_Files"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.6-flash",
+        "options": {
+          "maxOutputTokens": 32768
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        976,
+        112
+      ],
+      "id": "fe296379-ec9d-482b-8af3-405b8d386049",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "resource": "file",
+        "path": "=/opt/projects/{{ $('Format_Dev_Payload').first().json.project_slug }}",
+        "options": {
+          "fileName": "={{ $binary.data.fileName }}"
+        }
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        1184,
+        272
+      ],
+      "id": "7c55f892-1cad-495c-bb83-5397724c6ce7",
+      "name": "Upload a file",
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "SSH key (docker host)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "command": "=mkdir -p /opt/projects/{{ $('Format_Dev_Payload').first().json.project_slug }}"
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        384,
+        448
+      ],
+      "id": "9e8f9489-09c8-416b-a4b0-6b1f1db63f0b",
+      "name": "Ensure_Remote_Dir",
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "SSH key (docker host)"
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "command": "={{ $('Build_Command_Builder').first().json.build_command }}"
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        432,
+        1072
+      ],
+      "id": "4d505567-ce8f-46c9-80af-cf069e293168",
+      "name": "Build_And_Run",
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "SSH key (docker host)"
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "command": "flock /opt/projects/.port_counter -c 'P=$(cat /opt/projects/.port_counter); echo -n $((P+1)) > /opt/projects/.port_counter; echo $P'"
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        336,
+        336
+      ],
+      "id": "44a792d3-8922-4d21-a46f-97cf4c412296",
+      "name": "Port_Counter",
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "SSH key (docker host)"
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        512,
+        320
+      ],
+      "id": "d2ec08f2-6725-4f9a-8332-f79233ff90be",
+      "name": "Merge_Build_Inputs"
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "useDataOfInput": 2
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        832,
+        688
+      ],
+      "id": "11fb523d-afcc-4696-b543-b30e29a96b02",
+      "name": "Sync_Upload_Gate"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7de4a811-d09a-4f28-8021-6fe0e741b9b8",
+              "leftValue": "={{  $json.code === 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        192,
+        -240
+      ],
+      "id": "a855fcc3-20ec-4435-aae7-a9ebd611cc87",
+      "name": "Check_Build_Exit_Code"
+    },
+    {
+      "parameters": {
+        "jsCode": "const slug = $('Format_Dev_Payload').first().json.project_slug;\nconst port = $('Port_Counter').first().json.stdout;\n\nconst dockerfileLines = [\n  'FROM python:3.11-slim',\n  'WORKDIR /app',\n  'COPY requirements.txt .',\n  'RUN pip install --no-cache-dir -r requirements.txt',\n  'COPY . .',\n  'EXPOSE 8000',\n  'CMD [\"uvicorn\", \"main:app\", \"--host\", \"0.0.0.0\", \"--port\", \"8000\"]'\n];\nconst printfArgs = dockerfileLines.map(l => `'${l}'`).join(' ');\n\n// Health-Check nach dem Start (Punkt A, 23.09.): 2 s warten, dann bis zu 5 Versuche im Abstand von 1 s.\n// Restart-Policy (24.09.): Container starten mit '--restart unless-stopped'; im Fehlerzweig wird sie vor exit 97 auf 'no' gesetzt.\n// Gesund = Container läuft UND HTTP-Antwort auf / mit Status < 400 (Redirects zählen als gesund; 404 seit 24.09. krank).\n// Sonst Exit 97 + Log-Auszug nach stderr -> Check_Build_Exit_Code (false) -> Format_Reject_Response (fail-closed).\n// Toter Container bleibt für die Fehlersuche stehen. Bewusst ohne doppelte geschweifte Klammern (docker inspect -f),\n// damit im SSH-Command-Feld nichts wie ein n8n-Ausdruck aussieht.\nconst healthCheck = [\n  'sleep 2',\n  'hc_ok=0',\n  'hc_code=000',\n  'hc_run=',\n  'for i in 1 2 3 4 5; do ' +\n    `hc_run=$(docker ps --filter status=running --filter name=${slug} | awk '{print $NF}' | grep -x -- '${slug}'); ` +\n    // Restart-Policy (24.09.): ein zwischenzeitlich neu gestarteter Container gilt als krank (RestartCount muss 0 sein).\n    `if ! docker inspect ${slug} | grep -q '\"RestartCount\": 0,'; then hc_run=; fi; ` +\n    `hc_code=$(curl -s -o /dev/null -m 2 -w '%{http_code}' http://localhost:${port}/); ` +\n    'if [ -n \"$hc_run\" ] && [ \"$hc_code\" -ge 100 ] && [ \"$hc_code\" -lt 400 ]; then hc_ok=1; break; fi; ' +\n    'if [ $i -lt 5 ]; then sleep 1; fi; ' +\n  'done',\n  'if [ $hc_ok -ne 1 ]; then ' +\n    `echo \"HEALTHCHECK_FAILED: App ${slug} antwortet nach 5 Versuchen nicht gesund (letzter HTTP-Status: $hc_code, Container läuft: $([ -n \"$hc_run\" ] && echo ja || echo nein))\" >&2; ` +\n    `echo \"--- docker logs --tail 30 ${slug} ---\" >&2; ` +\n    `docker logs --tail 30 ${slug} >&2 2>&1; ` +\n    // Restart-Policy (24.09.): Container bleibt zur Fehlersuche stehen, darf aber nicht endlos neu starten.\n    `docker update --restart no ${slug} >/dev/null 2>&1; ` +\n    'exit 97; ' +\n  'fi',\n  'echo \"HEALTHCHECK_OK: HTTP $hc_code nach Versuch $i\"'\n].join('; ');\n\n// '&&' statt ';' vor docker run (Punkt A, 23.09.): ein fehlgeschlagener Build bricht jetzt ab, statt docker run\n// ohne Image zu starten (-> irreführender Pull-Fehler). docker rm -f darf fehlschlagen (Container existiert noch nicht).\nconst buildCommand = `printf '%s\\\\n' ${printfArgs} > /opt/projects/${slug}/Dockerfile && cd /opt/projects/${slug} && docker build -t ${slug} . && { docker rm -f ${slug} >/dev/null 2>&1 || true; } && docker run -d --restart unless-stopped --name ${slug} -p ${port}:8000 ${slug} && { ${healthCheck}; }`;\n\nreturn [{ json: { build_command: buildCommand, project_slug: slug, port: port } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        672
+      ],
+      "id": "b3b9314e-eb2b-4467-af7c-77b2709ed6e1",
+      "name": "Build_Command_Builder"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.github.com/user/repos",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"{{ $('Format_Dev_Payload').first().json.project_slug }}\",\n  \"private\": true,\n  \"description\": \"Auto-generated by CoreForge CI/CD Engine\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        192,
+        1312
+      ],
+      "id": "bead395d-7a56-4928-867a-9c818d437562",
+      "name": "Create_GitHub_Repo",
+      "credentials": {
+        "githubApi": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "GitHub API"
+        }
+      },
+      "executeOnce": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "useDataOfInput": 2
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        432,
+        1312
+      ],
+      "id": "87f9a146-3ec2-4af5-ae47-afb9d96db063",
+      "name": "Sync_GitHub_Gate"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "owner": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.github_owner }}",
+          "mode": "name"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "={{ $('Format_Dev_Payload').first().json.project_slug }}",
+          "mode": "name"
+        },
+        "filePath": "={{ $json.file_name }}",
+        "binaryData": true,
+        "commitMessage": "Initial commit via CoreForge CI/CD Engine"
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        1312
+      ],
+      "id": "84be9f14-e80c-4489-a355-f289017b4736",
+      "name": "GitHub_Push_Files",
+      "webhookId": "00000000-0000-4000-8000-000000000002",
+      "credentials": {
+        "githubApi": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "GitHub API"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const PLACEHOLDER_CREDENTIAL_WORDS = /^(user|username|admin|root|guest|test|pass|password|passwd|secret|changeme|changeit|xxx+|placeholder|example|dummy|replace[-_]?me|123456|admin123|postgres|mongo|mysql|redis)$/i;\n\nconst PATTERNS = [\n  { name: 'aws_access_key_id', re: /AKIA[0-9A-Z]{16}/g },\n  { name: 'github_pat', re: /gh[pousr]_[A-Za-z0-9]{36,}/g },\n  { name: 'private_key_header', re: /-----BEGIN (RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----/g },\n  { name: 'slack_token', re: /xox[baprs]-[0-9A-Za-z-]{10,48}/g },\n  { name: 'google_api_key', re: /AIza[0-9A-Za-z\\-_]{35}/g },\n  { name: 'generic_secret_assignment', re: /(api[_-]?key|secret|token|passwd|password)\\s*[:=]\\s*['\"]([A-Za-z0-9_\\-\\.\\/+]{16,})['\"]/gi },\n  {\n    name: 'db_connection_string_with_credentials',\n    re: /(?:postgres(?:ql)?|mongodb(?:\\+srv)?|mysql|redis):\\/\\/(?<user>[A-Za-z0-9_.%+-]+):(?<pass>[^\\s@\\/]+)@(?<host>[^\\s\\/'\"]+)/gi,\n    validate: (m) => !PLACEHOLDER_CREDENTIAL_WORDS.test(m.groups.pass),\n  },\n  { name: 'stripe_key', re: /sk_(?:live|test)_[A-Za-z0-9]{10,}/g },\n  { name: 'openai_key', re: /sk-proj-[A-Za-z0-9_-]{20,}/g },\n  { name: 'openai_key', re: /sk-(?!ant-|proj-)[A-Za-z0-9]{20,}/g },\n  { name: 'anthropic_key', re: /sk-ant-[A-Za-z0-9_-]{10,}/g },\n  { name: 'jwt', re: /eyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}/g },\n];\n\nconst PLACEHOLDER_HINTS = /your[-_]?(token|key|secret|password)|<[^>]+>|xxx+|changeme|placeholder|example|dummy|replace[-_]?me/i;\nconst PLACEHOLDER_FILES = /\\.env\\.example$|^readme\\.md$/i;\n\nfunction scanFile(fileName, text) {\n  const isPlaceholderFile = PLACEHOLDER_FILES.test(fileName);\n  const matches = [];\n  for (const pattern of PATTERNS) {\n    if (isPlaceholderFile && pattern.name === 'generic_secret_assignment') continue;\n    for (const m of text.matchAll(pattern.re)) {\n      const raw = m[0];\n      if (PLACEHOLDER_HINTS.test(raw)) continue;\n      if (pattern.validate && !pattern.validate(m)) continue;\n      matches.push(pattern.name);\n    }\n  }\n  return [...new Set(matches)];\n}\n\nconst items = $input.all();\nconst results = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  const fileName = item.json.file_name || '';\n  let content = '';\n  let readFailed = false;\n  if (item.binary && item.binary.data) {\n    // Live liegen Binaries im Dateisystem-Modus (.data = Marker) -> offizieller Helper statt Base64-Dekodierung\n    try { content = (await this.helpers.getBinaryDataBuffer(i, 'data')).toString('utf-8'); } catch (e) { readFailed = true; }\n  }\n  // fail-closed: eine nicht lesbare Datei kann nicht als sauber gelten\n  const matches = readFailed ? ['scan_read_error'] : scanFile(fileName, content);\n  results.push({\n    json: { ...item.json, secret_scan: { clean: matches.length === 0, matches } },\n    binary: item.binary,\n  });\n}\n\nconst pipelineClean = results.every(r => r.json.secret_scan.clean);\nfor (const r of results) {\n  r.json.secret_scan_pipeline_clean = pipelineClean;\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        1504
+      ],
+      "id": "1f4c3e62-382c-44df-9133-cb820ae32661",
+      "name": "Secret_Scan"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "4ae57873-a66b-41d6-89e1-ecba0b1cf6a0",
+              "leftValue": "={{ $json.secret_scan_pipeline_clean }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        672,
+        1504
+      ],
+      "id": "616a1f48-f6e7-4c80-ba92-7a47e1d0ffd0",
+      "name": "Secret_Scan_Gate_Check"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        912,
+        1664
+      ],
+      "id": "ecc527ad-8b37-40c5-ae82-947ee07f16c5",
+      "name": "GitHub_Push_Blocked_SecretFound"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Zentrale Werte fuer Punkt 2 (Tiefenanalyse Config-Zentralisierung). NOCH NICHT eingehaengt.\n// docker_srv_ip ersetzt spaeter den Hardcode in Format_Success_Response (appUrl), NICHT Build_Command_Builder (dort steht keine IP).\n// github_owner ersetzt spaeter owner.value in GitHub_Push_Files.\n// n8n_host_ip ist aktuell in keinem Node hartkodiert -- nur zu Dokumentationszwecken mitgefuehrt (Infrastruktur laut CLAUDE.md).\nreturn [{\n  json: {\n    docker_srv_ip: \"<DOCKER_HOST>\",\n    n8n_host_ip: \"<N8N_HOST>\",\n    github_owner: \"<GITHUB_OWNER>\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2300,
+        1700
+      ],
+      "id": "config-centralized-values-node",
+      "name": "Config"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "retry-limit-cond-live",
+              "leftValue": "={{ ($('Aggregate_Files').first().json.revision_attempt || 0) < 2 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2600,
+        -300
+      ],
+      "id": "check-retry-limit-node",
+      "name": "Check_Retry_Limit"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ (() => {\n  const raw = $json.output || $json.text || \"\";\n  let cleaned = raw.replace(/```json/gi, \"\").replace(/```/gi, \"\").trim();\n  const fb = cleaned.indexOf('{');\n  const lb = cleaned.lastIndexOf('}');\n  let parsed = {};\n  if (fb !== -1 && lb !== -1) {\n    try { parsed = JSON.parse(cleaned.substring(fb, lb+1)); } catch(e) { parsed = {}; }\n  }\n  const issues = parsed.issues || [];\n  const files = $('Aggregate_Files').first().json.files || [];\n  return JSON.stringify({ issues, files });\n})() }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=# IDENTITY & ROLE\nYou are a Principal Software Engineer acting as a targeted Bugfix Specialist inside an autonomous CI/CD pipeline. You are invoked only after the QA & Security Gatekeeper has REJECTED a build. Your sole job is to produce the smallest possible, most precise correction instruction for the affected file(s) — never a full rebuild, never scope creep.\n\n# INPUT\nYou receive: (1) the QA Gatekeeper's rejection reasons (an issues array, ideally referencing specific files), and (2) the full current content of every file currently in the project.\n\n# CRITICAL RULES\n1. Minimal Diff Principle: identify EXACTLY which file(s) each issue applies to. Never propose a change to a file that has no associated issue.\n2. Precise Instructions: for each affected file, write a specific, actionable instruction describing exactly what must change — never vague guidance like \"fix the bugs\".\n3. Preserve Everything Else: make explicit in your instruction that only the described defect is to be fixed — all other code in the file must remain unchanged unless it is a direct, necessary consequence of the fix.\n4. No Scope Creep: never suggest new features, refactors, or stylistic improvements beyond what QA explicitly flagged.\n5. Attribute Correctly: if an issue's affected file is ambiguous, use the provided file contents and issue text to determine it — state your reasoning in one sentence within \"issues_addressed\".\n6. Empty Is Valid: if no issue applies to backend files, set files_to_patch_backend to an empty array (symmetrically for frontend) — never invent a fix on a side that QA did not flag.\n\n# OUTPUT FORMAT\nOutput ONLY valid, parseable JSON. No markdown fences, no conversational preamble, no closing text.\n{\n  \"issues_addressed\": \"string — one sentence, which QA issues this covers and why\",\n  \"files_to_patch_backend\": [ { \"path\": \"main.py\", \"current_content\": \"...\", \"instruction\": \"...\" } ],\n  \"files_to_patch_frontend\": [ { \"path\": \"index.html\", \"current_content\": \"...\", \"instruction\": \"...\" } ]\n}"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        2600,
+        -140
+      ],
+      "id": "feedback-bugfix-agent-node",
+      "name": "Feedback_Bugfix_Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.6-flash",
+        "options": {
+          "maxOutputTokens": 32768
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        2600,
+        20
+      ],
+      "id": "gemini-feedback-bugfix-node",
+      "name": "Google Gemini Chat Model4",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rawOutput = $json.output || $json.text || \"\";\nlet cleaned = rawOutput.replace(/```json/gi, \"\").replace(/```/gi, \"\").trim();\nconst firstBrace = cleaned.indexOf('{');\nconst lastBrace = cleaned.lastIndexOf('}');\nlet patch = {};\nif (firstBrace !== -1 && lastBrace !== -1) {\n  try { patch = JSON.parse(cleaned.substring(firstBrace, lastBrace + 1)); } catch (e) { patch = {}; }\n}\n\nlet prevAttempt = 0;\ntry { prevAttempt = $('Aggregate_Files').first().json.revision_attempt ?? 0; } catch (e) { prevAttempt = 0; }\nconst revisionAttempt = prevAttempt + 1;\n\nconst backendFiles = patch.files_to_patch_backend || [];\nconst frontendFiles = patch.files_to_patch_frontend || [];\n\nconst result = { json: { revision_attempt: revisionAttempt, issues_addressed: patch.issues_addressed || '' } };\n\n// Punkt C (24.09.): developer_spec + qa_spec auch im Korrekturmodus an die Dev-Agenten (Kontext, keine neuen Aufgaben)\nlet specContext = {};\ntry { const fdp = $('Format_Dev_Payload').first().json; const s = fdp.raw_spec || {}; specContext = { developer_spec: s.developer_spec || {}, qa_spec: s.qa_spec || {}, platform_facts: fdp.platform_facts || [] }; } catch (e) { specContext = {}; }\n\nif (backendFiles.length > 0) {\n  result.json.backend_payload = JSON.stringify({\n    mode: \"correction\",\n    task: \"Apply a targeted fix to existing backend file(s). Do NOT rewrite unrelated files or add new features.\",\n    files_to_patch: backendFiles,\n    ...specContext,\n  });\n}\nif (frontendFiles.length > 0) {\n  result.json.frontend_payload = JSON.stringify({\n    mode: \"correction\",\n    task: \"Apply a targeted fix to existing frontend file(s). Do NOT rewrite unrelated files or add new features.\",\n    files_to_patch: frontendFiles,\n    ...specContext,\n  });\n}\n\nreturn [result];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2820,
+        -140
+      ],
+      "id": "format-correction-payload-node",
+      "name": "Format_Correction_Payload"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "needs-backend-cond-live",
+              "leftValue": "={{ $json.backend_payload !== undefined }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3040,
+        -220
+      ],
+      "id": "needs-backend-fix-node",
+      "name": "Needs_Backend_Fix"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "needs-frontend-cond-live",
+              "leftValue": "={{ $json.frontend_payload !== undefined }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3040,
+        -60
+      ],
+      "id": "needs-frontend-fix-node",
+      "name": "Needs_Frontend_Fix"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst blockedItems = items.filter(i => i.json.secret_scan !== undefined);\nif (blockedItems.length > 0) {\n  const affectedFiles = blockedItems.filter(i => !i.json.secret_scan.clean).map(i => i.json.file_name);\n  const categories = [...new Set(blockedItems.flatMap(i => i.json.secret_scan.matches || []))];\n  return [{ json: { github_status: 'blocked_secret',\n    github_message: `⚠️ **GitHub-Push blockiert:** Möglicher Secret-Fund in ${affectedFiles.join(', ')} (Muster: ${categories.join(', ')}). Der Code wurde NICHT zu GitHub gepusht. Das Staging-Deployment lief unabhängig davon bereits erfolgreich.` } }];\n}\nreturn [{ json: { github_status: 'pushed', github_message: '' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        900
+      ],
+      "id": "format-github-outcome-node",
+      "name": "Format_GitHub_Outcome"
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "useDataOfInput": 1
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1628,
+        700
+      ],
+      "id": "sync-response-gate-node",
+      "name": "Sync_Response_Gate"
+    },
+    {
+      "parameters": {
+        "jsCode": "const baseMessage = $json.response || $json.output;\nconst githubOutcome = $('Format_GitHub_Outcome').first().json;\nconst complianceOutcome = $('Format_Compliance_Outcome').first().json;\nconst legalOutcome = $('Legal_Scan').first().json;\n// Punkt G (26.09.): Mock-Scan-Hinweis, abgesichert – fehlt Node/Item/Feld, gibt es keinen Hinweis und keinen Fehler\nlet mockScan = null;\ntry { const m = $('Mock_Scan').first(); mockScan = (m && m.json && m.json.mock_scan) || null; } catch (e) { mockScan = null; }\n\nlet finalMessage = baseMessage;\nif (githubOutcome.github_status === 'blocked_secret') {\n  finalMessage = `${finalMessage}\\n\\n${githubOutcome.github_message}`;\n}\nif (complianceOutcome.compliance_status === 'flagged') {\n  finalMessage = `${finalMessage}\\n\\n${complianceOutcome.compliance_message}`;\n}\nif (legalOutcome.legal_message) {\n  finalMessage = `${finalMessage}\\n\\n${legalOutcome.legal_message}`;\n}\nif (mockScan && typeof mockScan.message === 'string' && mockScan.message) {\n  finalMessage = `${finalMessage}\\n\\n${mockScan.message}`;\n}\nreturn [{ json: { response: finalMessage, output: finalMessage } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1848,
+        700
+      ],
+      "id": "format-final-response-node",
+      "name": "Format_Final_Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "const PII_INDICATOR_PATTERNS = [\n  { name: 'name_field', tier: 'direct', re: /\\b(full[_-]?name|first[_-]?name|last[_-]?name|vorname|nachname)\\b/i },\n  { name: 'email_field', tier: 'direct', re: /\\b(e[_-]?mail)\\b/i },\n  { name: 'phone_field', tier: 'direct', re: /\\b(phone|telefon)\\b/i },\n  { name: 'national_id_field', tier: 'direct', re: /\\b(ssn|social[_-]?security|sozialversicherungsnummer|passport[_-]?number|national[_-]?id|steuer[_-]?id)\\b/i },\n  { name: 'device_id_field', tier: 'direct', re: /\\b(device[_-]?id|ger(a|ä)te[_-]?id)\\b/i },\n  { name: 'address_field', tier: 'direct', re: /\\b(address|adresse|street|strasse)\\b/i },\n  { name: 'postal_code_field', tier: 'quasi', re: /\\b(zip|plz|postal[_-]?code)\\b/i },\n  { name: 'dob_field', tier: 'quasi', re: /\\b(birthdate|date[_-]?of[_-]?birth|geburtsdatum|dob)\\b/i },\n  { name: 'gender_field', tier: 'quasi', re: /\\b(gender|geschlecht)\\b/i },\n  { name: 'job_title_field', tier: 'quasi', re: /\\b(job[_-]?title|berufsbezeichnung)\\b/i },\n  { name: 'ip_logging', tier: 'quasi', re: /\\b(client\\.host|remote_addr|log[_-]?ip|store[_-]?ip)\\b/i },\n  { name: 'tracking_analytics', tier: 'quasi', re: /(document\\.cookie|google-analytics|gtag\\(|facebook\\s*pixel)/i },\n  { name: 'health_field', tier: 'sensitive', re: /(?:\\b(?:user|users|patient|patients|customer|person|personal|medical|mental|physical|employee|my|your|his|her|their)[\\s_-]*health\\b|\\bhealth[\\s_-]*(?:data|records?|conditions?|information|info|history|insurance|issues?|problems?|profile|care|reports?)\\b|(?<!\\b(?:system|server|service|app|application|api|backend|frontend)\\s+)\\bhealth[\"']?\\s*[:=](?!=)|\\b(?:gesundheit|diagnos)\\b)/i },\n  { name: 'biometric_field', tier: 'sensitive', re: /\\b(biometric|biometrisch)\\b/i },\n  { name: 'financial_field', tier: 'sensitive', re: /\\b(financial|finanz|iban|kreditkarte|credit[_-]?card|bank[_-]?account|kontonummer)\\b/i },\n  { name: 'location_field', tier: 'sensitive', re: /(?<!\\b(?:window|document|self|top|parent)\\.)\\b(?:location(?!\\s+[\\/~=^]|\\.(?:href|reload|replace|assign|hash|search|pathname|origin|host|hostname|protocol|port)\\b)|standort|gps|coordinates|geo[_-]?location)\\b/i },\n  { name: 'sensitive_category_other', tier: 'sensitive', re: /\\b(religion|ethnizit(a|ä)t|ethnicity|sexual[_-]?orientation|political[_-]?opinion)\\b/i }\n];\n\nfunction scanFile(text) {\n  return PII_INDICATOR_PATTERNS.filter(p => p.re.test(text)).map(p => ({ name: p.name, tier: p.tier }));\n}\n\nconst items = $input.all();\nconst results = [];\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  let indicators = [];\n  if (item.binary && item.binary.data) {\n    try {\n      const content = (await this.helpers.getBinaryDataBuffer(i, 'data')).toString('utf-8');\n      indicators = scanFile(content);\n    } catch (e) {\n      // fail-loud (informativer Agent, blockiert nie): Lesefehler wird als Indikator sichtbar gemacht\n      indicators = [{ name: 'scan_read_error', tier: 'quasi' }];\n    }\n  }\n  results.push({ json: { ...item.json, pii_indicators: indicators }, binary: item.binary });\n}\nconst anyIndicator = results.some(r => r.json.pii_indicators.length > 0);\nfor (const r of results) r.json.pii_scan_triggered = anyIndicator;\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        1900
+      ],
+      "id": "compliance-scan-node",
+      "name": "Compliance_Scan"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "compliance-trigger-cond-live",
+              "leftValue": "={{ $json.pii_scan_triggered }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        652,
+        1900
+      ],
+      "id": "compliance-gate-check-node",
+      "name": "Compliance_Gate_Check"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst flagged = [];\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  if (item.json.pii_indicators.length === 0) continue;\n  let content = '';\n  if (item.binary && item.binary.data) {\n    try { content = (await this.helpers.getBinaryDataBuffer(i, 'data')).toString('utf-8'); } catch (e) { content = '[Dateiinhalt nicht lesbar]'; }\n  }\n  flagged.push({ file_name: item.json.file_name, indicators: item.json.pii_indicators, content });\n}\nreturn [{ json: { compliance_input_payload: JSON.stringify({ flagged_files: flagged }) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        872,
+        1840
+      ],
+      "id": "build-compliance-input-node",
+      "name": "Build_Compliance_Input"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.compliance_input_payload }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=# IDENTITY & ROLE\nYou are a Principal Privacy & Compliance Analyst inside an autonomous CI/CD pipeline. You are invoked only after a deterministic pre-scan found code patterns suggesting the app may process personal data. Your job is a SHORT, informative, NON-BLOCKING GDPR note for the end user — never a legal opinion, never a deploy blocker.\n\n# INPUT\nA list of files, each annotated with which deterministic indicator(s) triggered your review (name + tier: direct/quasi/sensitive), plus the file's current content.\n\n# EVALUATION CRITERIA\nJudge the code against these five criteria. Only mention a criterion in your output if it is actually relevant to what the flagged indicators show — do not pad the response with criteria that don't apply.\n| Criterion | What counts as compliant |\n|---|---|\n| Data Minimization | Only fields that are actually needed are collected; no speculative/redundant extra fields |\n| Encryption | Personal data is encrypted at rest/in transit (not stored/logged in plaintext) |\n| Access Control | No unrestricted/public access to personal data without any auth check |\n| Consent Capture | If an opt-in/consent mechanism exists: explicit opt-in, not pre-checked |\n| Pseudonymization | Where feasible, technical separation of identifier and payload data |\n\n# CRITICAL RULES\n1. Be concrete: name which data appears to be processed, based on the actual indicators and file content given — not generic boilerplate.\n2. Be brief: up to 3 short, plain-language, actionable points, each tied to one of the criteria above where applicable.\n3. Never claim legal certainty — this is guidance, not a legal judgment. If the trigger looks like a false positive (e.g. \"email\" appears only in an unrelated comment, no data is actually stored or transmitted), say so plainly and keep the note minimal.\n4. Never suggest blocking or stopping the deploy — this check is informational only.\n5. Special Category Flag: if any flagged indicator has tier \"sensitive\" (Art. 9 GDPR special category data), say so explicitly in the summary — higher legal scrutiny even for a demo app.\n\n# OUTPUT FORMAT\nOutput ONLY valid, parseable JSON. No markdown fences, no conversational preamble.\n{\n  \"summary\": \"string — one sentence, what personal data this app appears to process, and whether it touches a special category (Art. 9)\",\n  \"gdpr_points\": [\"string — up to 3 short, concrete, actionable considerations, referencing the relevant criterion where applicable\"]\n}"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1092,
+        1840
+      ],
+      "id": "compliance-agent-node",
+      "name": "Compliance_Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.6-flash",
+        "options": {
+          "maxOutputTokens": 8192
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1092,
+        2000
+      ],
+      "id": "gemini-compliance-node",
+      "name": "Google Gemini Chat Model5",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst llmItem = items.find(i => i.json.output || i.json.text);\nif (llmItem) {\n  const raw = llmItem.json.output || llmItem.json.text;\n  let cleaned = raw.replace(/```json/gi, \"\").replace(/```/gi, \"\").trim();\n  const fb = cleaned.indexOf('{'); const lb = cleaned.lastIndexOf('}');\n  let parsed = {};\n  if (fb !== -1 && lb !== -1) { try { parsed = JSON.parse(cleaned.substring(fb, lb+1)); } catch(e) { parsed = {}; } }\n  const summary = parsed.summary || 'Mögliche Verarbeitung personenbezogener Daten erkannt.';\n  const points = Array.isArray(parsed.gdpr_points) ? parsed.gdpr_points : [];\n  const message = `ℹ️ **Datenschutz-Hinweis (informativ, kein Blocker):** ${summary}${points.length ? '\\n- ' + points.join('\\n- ') : ''}`;\n  return [{ json: { compliance_status: 'flagged', compliance_message: message } }];\n}\nreturn [{ json: { compliance_status: 'not_applicable', compliance_message: '' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        1900
+      ],
+      "id": "format-compliance-outcome-node",
+      "name": "Format_Compliance_Outcome"
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "useDataOfInput": 1
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1628,
+        480
+      ],
+      "id": "sync-compliance-gate-node",
+      "name": "Sync_Compliance_Gate"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst THIRD_PARTY_CATALOG = [\n  // id, Erkennung (auf die komplette URL), Anbieter, Kategorie, Zweck\n  { id: 'google_fonts_css',   re: /^https?:\\/\\/fonts\\.googleapis\\.com/i,            provider: 'Google Fonts',            category: 'font',        purpose: 'Schriftarten (CSS)' },\n  { id: 'google_fonts_files', re: /^https?:\\/\\/fonts\\.gstatic\\.com/i,               provider: 'Google Fonts',            category: 'font',        purpose: 'Schriftdateien' },\n  { id: 'adobe_fonts',        re: /^https?:\\/\\/(use\\.typekit\\.net|p\\.typekit\\.net)/i, provider: 'Adobe Fonts',           category: 'font',        purpose: 'Schriftarten' },\n  { id: 'fontawesome_kit',    re: /^https?:\\/\\/(use|kit|ka-f|kit-free)\\.fontawesome\\.com/i, provider: 'Font Awesome',    category: 'cdn_library', purpose: 'Icons' },\n  { id: 'cdnjs',              re: /^https?:\\/\\/cdnjs\\.cloudflare\\.com/i,            provider: 'cdnjs (Cloudflare)',      category: 'cdn_library', purpose: 'Bibliotheken/Icons per CDN' },\n  { id: 'tailwind_cdn',       re: /^https?:\\/\\/cdn\\.tailwindcss\\.com/i,             provider: 'Tailwind CSS (Play-CDN)', category: 'cdn_library', purpose: 'CSS-Framework' },\n  { id: 'jsdelivr',           re: /^https?:\\/\\/cdn\\.jsdelivr\\.net/i,                provider: 'jsDelivr',                category: 'cdn_library', purpose: 'Bibliotheken per CDN' },\n  { id: 'unpkg',              re: /^https?:\\/\\/unpkg\\.com/i,                        provider: 'unpkg',                   category: 'cdn_library', purpose: 'Bibliotheken per CDN' },\n  { id: 'google_ajax_cdn',    re: /^https?:\\/\\/ajax\\.googleapis\\.com/i,             provider: 'Google Hosted Libraries', category: 'cdn_library', purpose: 'Bibliotheken per CDN' },\n  { id: 'jquery_cdn',         re: /^https?:\\/\\/code\\.jquery\\.com/i,                 provider: 'jQuery CDN',              category: 'cdn_library', purpose: 'jQuery' },\n  { id: 'bootstrap_cdn',      re: /^https?:\\/\\/(stackpath|maxcdn)\\.bootstrapcdn\\.com/i, provider: 'BootstrapCDN',        category: 'cdn_library', purpose: 'Bootstrap' },\n  { id: 'esm_cdn',            re: /^https?:\\/\\/(esm\\.sh|cdn\\.skypack\\.dev)/i,       provider: 'ES-Module-CDN',           category: 'cdn_library', purpose: 'JavaScript-Module' },\n  { id: 'google_tag_manager', re: /^https?:\\/\\/www\\.googletagmanager\\.com/i,        provider: 'Google Tag Manager',      category: 'analytics',   purpose: 'Tracking/Tag-Verwaltung' },\n  { id: 'google_analytics',   re: /^https?:\\/\\/(www|ssl|analytics)\\.google-analytics\\.com|^https?:\\/\\/analytics\\.google\\.com/i, provider: 'Google Analytics', category: 'analytics', purpose: 'Reichweitenmessung' },\n  { id: 'plausible',          re: /^https?:\\/\\/plausible\\.io/i,                     provider: 'Plausible',               category: 'analytics',   purpose: 'Reichweitenmessung' },\n  { id: 'hotjar',             re: /^https?:\\/\\/[a-z0-9.-]*hotjar\\.(com|io)/i,       provider: 'Hotjar',                  category: 'analytics',   purpose: 'Nutzerverhalten-Analyse' },\n  { id: 'facebook_sdk',       re: /^https?:\\/\\/connect\\.facebook\\.net/i,            provider: 'Meta/Facebook',           category: 'analytics',   purpose: 'Tracking/Social-Plugins' },\n  { id: 'cloudflare_insights',re: /^https?:\\/\\/static\\.cloudflareinsights\\.com/i,   provider: 'Cloudflare Web Analytics',category: 'analytics',   purpose: 'Reichweitenmessung' },\n  { id: 'google_maps',        re: /^https?:\\/\\/maps\\.(googleapis|google)\\.com/i,    provider: 'Google Maps',             category: 'maps',        purpose: 'Karten' },\n  { id: 'openstreetmap',      re: /^https?:\\/\\/([a-c]\\.)?tile\\.openstreetmap\\.org/i,provider: 'OpenStreetMap',           category: 'maps',        purpose: 'Kartenkacheln' },\n  { id: 'youtube',            re: /^https?:\\/\\/(www\\.)?youtube(-nocookie)?\\.com/i,  provider: 'YouTube',                 category: 'embed',       purpose: 'Video-Einbettung' },\n  { id: 'vimeo',              re: /^https?:\\/\\/player\\.vimeo\\.com/i,                provider: 'Vimeo',                   category: 'embed',       purpose: 'Video-Einbettung' },\n  { id: 'recaptcha',          re: /^https?:\\/\\/(www\\.)?(google\\.com\\/recaptcha|recaptcha\\.net|gstatic\\.com\\/recaptcha)/i, provider: 'Google reCAPTCHA', category: 'captcha', purpose: 'Bot-Schutz' },\n];\n\n// Hosts, die nie als Drittanbieter zählen (lokal/privat/reine Namespace-Bezeichner)\nconst IGNORED_HOST = /^(localhost|127\\.\\d+\\.\\d+\\.\\d+|0\\.0\\.0\\.0|10\\.\\d+\\.\\d+\\.\\d+|192\\.168\\.\\d+\\.\\d+|172\\.(1[6-9]|2\\d|3[01])\\.\\d+\\.\\d+|[^/]*\\.local|(www\\.)?w3\\.org|schemas?\\.[a-z.]+|(www\\.)?schema\\.org|example\\.(com|org|net)|json-schema\\.org|fastapi\\.tiangolo\\.com|swagger\\.io)$/i;\n\n// Ladekontext: die URL steht direkt hinter einem Konstrukt, das sie tatsächlich lädt/aufruft\n// (nicht: <a href>, Kommentar-Fließtext, xmlns).\nconst LOADING_CONTEXT = [\n  /\\b(src|data-src|srcset)\\s*=\\s*[\"']?$/i,\n  /<link\\b[^>]*\\bhref\\s*=\\s*[\"']?$/i,\n  /@import\\s+(url\\(\\s*)?[\"']?$/i,\n  /\\burl\\(\\s*[\"']?$/i,\n  /\\b(fetch|axios(\\.\\w+)?|get|post|put|delete|request|open|urlopen|WebSocket|EventSource|import|importScripts|sendBeacon)\\s*\\(\\s*([\"'`][A-Za-z]+[\"'`]\\s*,\\s*)?[\"'`]$/i,\n  /\\bfrom\\s+[\"']$/i,\n];\n\nfunction extractUrls(text) {\n  const out = [];\n  const re = /(?:https?|wss?):\\/\\/[^\\s\"'`)<>\\\\]+/gi;\n  let m;\n  while ((m = re.exec(text)) !== null) {\n    const before = text.slice(Math.max(0, m.index - 120), m.index);\n    // nur die letzten Zeichen der aktuellen Zeile/des Tags betrachten\n    const ctx = before.slice(before.lastIndexOf('\\n') + 1);\n    out.push({ url: m[0].replace(/[.,;]+$/, ''), ctx });\n  }\n  return out;\n}\n\nfunction hostOf(url) {\n  const m = url.match(/^(?:https?|wss?):\\/\\/([^/:?#]+)/i);\n  return m ? m[1].toLowerCase() : '';\n}\n\nfunction scanFile(text) {\n  const found = [];\n  for (const { url, ctx } of extractUrls(text)) {\n    const host = hostOf(url);\n    if (!host || IGNORED_HOST.test(host)) continue;\n    if (!LOADING_CONTEXT.some(re => re.test(ctx))) continue;\n    const known = THIRD_PARTY_CATALOG.find(c => c.re.test(url));\n    if (known) {\n      found.push({ host, provider: known.provider, category: known.category, purpose: known.purpose });\n    } else {\n      found.push({ host, provider: host, category: 'other_external', purpose: 'unbekannter externer Dienst' });\n    }\n  }\n  return found;\n}\n\nfunction buildLegalResult(files) {\n  // files: [{ name, content }]\n  const byProvider = new Map();\n  for (const f of files) {\n    for (const r of scanFile(f.content || '')) {\n      const key = r.provider;\n      if (!byProvider.has(key)) byProvider.set(key, { provider: r.provider, category: r.category, purpose: r.purpose, hosts: new Set(), files: new Set() });\n      const e = byProvider.get(key);\n      e.hosts.add(r.host); e.files.add(f.name);\n    }\n  }\n  const resources = [...byProvider.values()].map(e => ({ provider: e.provider, category: e.category, purpose: e.purpose, hosts: [...e.hosts].sort(), files: [...e.files].sort() }));\n  if (resources.length === 0) return { legal_status: 'not_applicable', legal_message: '', third_party_resources: [] };\n  const lines = resources.map(r => `- **${r.provider}** (${r.hosts.map(h => '`' + h + '`').join(', ')}) – ${r.purpose} [${r.files.join(', ')}]`);\n  // Empfehlung nur bei Google Fonts (bekannte Rechtsprechung, u. a. LG München I) – bewusst nicht pauschal für alle Anbieter\n  const fontsTip = resources.some(r => r.provider === 'Google Fonts')\n    ? '\\n⚠️ **Empfehlung Google Fonts:** Schriftarten lokal hosten statt per Google-CDN laden – beim dynamischen Laden wird die Besucher-IP an Google-Server in den USA übertragen (DSGVO-relevant, u. a. LG München I).'\n    : '';\n  const message = `ℹ️ **Rechts-Hinweis (informativ, kein Blocker):** Die App lädt Ressourcen von Drittanbietern; beim Seitenaufruf wird dabei die IP-Adresse der Besucher an diese Anbieter übertragen:\\n${lines.join('\\n')}${fontsTip}\\nBei produktivem/öffentlichem Einsatz werden Impressum & Datenschutzerklärung benötigt.`;\n  return { legal_status: 'flagged', legal_message: message, third_party_resources: resources };\n}\n\n// n8n-Wrapper (Ausgabe: genau EIN Item, egal wie viele Dateien eingehen).\n// WICHTIG: Inhalt NICHT per Buffer.from(item.binary.data.data, 'base64') lesen – live liegen Binaries im\n// Dateisystem-Modus, dort steht in .data nur der Marker \"filesystem-v2\". Offizieller Weg: helpers.getBinaryDataBuffer.\n// Lesefehler werden nicht verschluckt, sondern als sichtbare Warnung ausgegeben (Pipeline stoppt trotzdem nie).\nasync function runNode(items, helpers) {\n  const files = [];\n  const readErrors = [];\n  for (let i = 0; i < items.length; i++) {\n    const item = items[i];\n    const name = (item.json && item.json.file_name) || '';\n    let content = '';\n    if (item.binary && item.binary.data) {\n      try { content = (await helpers.getBinaryDataBuffer(i, 'data')).toString('utf-8'); }\n      catch (e) { readErrors.push(name || ('Item ' + i)); }\n    }\n    files.push({ name, content });\n  }\n  const result = buildLegalResult(files);\n  if (readErrors.length) {\n    const warn = `⚠️ **Rechts-Hinweis:** Der Drittanbieter-Scan konnte ${readErrors.length} Datei(en) nicht lesen (${readErrors.join(', ')}) – Ergebnis unvollständig.`;\n    result.read_errors = readErrors;\n    if (result.legal_status === 'flagged') { result.legal_message += '\\n' + warn; }\n    else { result.legal_status = 'scan_failed'; result.legal_message = warn; }\n  }\n  return [{ json: result }];\n}\n\nreturn await runNode($input.all(), this.helpers);\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        2200
+      ],
+      "id": "legal-scan-node",
+      "name": "Legal_Scan"
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "useDataOfInput": 1
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1848,
+        480
+      ],
+      "id": "sync-legal-gate-node",
+      "name": "Sync_Legal_Gate"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\n\nfunction sanitizeCtrl(t){let r=\"\";let inStr=false;let esc=false;for(let i=0;i<t.length;i++){const c=t[i];const cc=t.charCodeAt(i);if(inStr){if(esc){r+=c;esc=false;}else if(cc===92){r+=c;esc=true;}else if(cc===34){r+=c;inStr=false;}else if(cc===10){r+=\"\\\\n\";}else if(cc===13){r+=\"\\\\r\";}else if(cc===9){r+=\"\\\\t\";}else{r+=c;}}else{if(cc===34){inStr=true;}r+=c;}}return r;}\n\nconst VALID_ESC = { '\"': '\"', '\\\\': '\\\\', '/': '/', b: '\\b', f: '\\f', n: '\\n', r: '\\r', t: '\\t' };\n// Toleranter JSON-String-Decoder: gültige Escapes wie JSON; ungültige Escape-Sequenzen (z. B. \\d, \\', \\$) bleiben als Backslash+Zeichen erhalten.\nfunction lenientUnescape(s) {\n  let out = '';\n  for (let i = 0; i < s.length; i++) {\n    const c = s[i];\n    if (c !== '\\\\') { out += c; continue; }\n    const n = s[i + 1];\n    if (n === undefined) { out += '\\\\'; break; }\n    if (n === 'u' && /^[0-9a-fA-F]{4}$/.test(s.slice(i + 2, i + 6))) { out += String.fromCharCode(parseInt(s.slice(i + 2, i + 6), 16)); i += 5; continue; }\n    if (Object.prototype.hasOwnProperty.call(VALID_ESC, n)) { out += VALID_ESC[n]; i += 1; continue; }\n    out += '\\\\' + n; i += 1;\n  }\n  return out;\n}\n\nfunction isUnsafePath(p) {\n  const norm = String(p).replace(/\\\\/g, '/').replace(/^\\/+/, '');\n  return norm === '' || norm.split('/').some(seg => seg === '..') || /^[A-Za-z]:/.test(norm) || norm.indexOf('\\u0000') !== -1;\n}\n\n// opts.forceTolerant: nur für Tests (Stufe 2 auch bei gültigem JSON erzwingen)\nfunction extractFiles(rawText, opts) {\n  const o = opts || {};\n  const res = { files: [], method: 'none', plausible: false, problems: [], warnings: [], truncated: false, truncatedPath: null, expected: 0 };\n  const text = String(rawText === undefined || rawText === null ? '' : rawText);\n  const first = text.indexOf('{');\n  if (first === -1) { res.problems.push('kein JSON-Objekt im Text gefunden'); return res; }\n  const last = text.lastIndexOf('}');\n  const cand = last > first ? text.slice(first, last + 1) : text.slice(first);\n  const tail = text.slice(first);\n  const structural = (tail.match(/\\{\\s*\"path\"\\s*:\\s*\"[^\"]*\"\\s*,\\s*\"content\"\\s*:\\s*\"/g) || []).length;\n\n  // Stufe 1: striktes JSON\n  if (!o.forceTolerant) {\n    try {\n      const parsed = JSON.parse(sanitizeCtrl(cand));\n      const arr = parsed && Array.isArray(parsed.files) ? parsed.files : null;\n      if (arr) {\n        res.files = arr.map(f => ({ path: String((f && (f.path || f.filename)) || ''), content: typeof (f && f.content) === 'string' ? f.content : '' }));\n        res.method = 'json';\n        res.expected = arr.length;\n      } else { res.warnings.push('gültiges JSON, aber kein files-Array – wechsle zur toleranten Extraktion'); }\n    } catch (e) { /* weiter mit Stufe 2 */ }\n  }\n\n  // Stufe 2: tolerante Einzeldatei-Extraktion\n  if (res.method === 'none') {\n    // Eintragsende = ein UNESCAPTES \" (gerade Anzahl Backslashes davor), gefolgt von \"}\" und danach entweder \", {\"path\":\" (nächster Eintrag) oder \"]\" (Array-Ende).\n    // Rohe/falsch escapte \" im Inhalt (z. B. `\\\"\"`, verbatim eingebettete Codeblöcke) und escaptes JSON im Inhalt (`\\\"}]`) beenden den Eintrag damit nicht.\n    const startRe = /\\{\\s*\"path\"\\s*:\\s*\"([^\"]+)\"\\s*,\\s*\"content\"\\s*:\\s*\"/g;\n    const endRe = /^\\s*\\}(?=\\s*(?:,\\s*\\{\\s*\"path\"\\s*:|\\]))/;\n    const files = [];\n    let sm, lastEnd = -1, incompletePath = null;\n    while ((sm = startRe.exec(tail)) !== null) {\n      const contentStart = startRe.lastIndex;\n      let i = contentStart, endIdx = -1, contentEnd = -1;\n      for (;;) {\n        const q = tail.indexOf('\"', i);\n        if (q === -1) break;\n        let bs = 0; for (let k = q - 1; k >= 0 && tail[k] === '\\\\'; k--) bs++;\n        if (bs % 2 === 0) {\n          const em = endRe.exec(tail.slice(q + 1, q + 1 + 400));\n          if (em) { endIdx = q + 1 + em[0].length; contentEnd = q; break; }\n        }\n        i = q + 1;\n      }\n      if (endIdx === -1) { incompletePath = sm[1]; break; }\n      files.push({ path: lenientUnescape(sm[1]), content: lenientUnescape(tail.slice(contentStart, contentEnd)) });\n      lastEnd = endIdx; startRe.lastIndex = endIdx;\n    }\n    res.files = files; res.method = files.length ? 'tolerant' : 'none'; res.expected = structural;\n    const remainder = lastEnd === -1 ? tail : tail.slice(lastEnd);\n    if (incompletePath === null && lastEnd !== -1 && /^\\s*\\]/.test(remainder)) {\n      // Array ordnungsgemäß geschlossen -> Struktur vollständig\n    } else if (structural > 0) {\n      res.truncated = true; res.truncatedPath = incompletePath;\n    }\n  }\n\n  // Stufe 3: Plausibilität (problems = hart -> Retry/fail-closed; warnings = nur Hinweis)\n  if (res.files.length === 0) res.problems.push('keine Dateien extrahierbar');\n  if (res.method === 'tolerant' && res.expected !== res.files.length) res.problems.push('Anzahl: ' + res.files.length + ' extrahiert, ' + res.expected + ' erwartet');\n  if (res.truncated) res.problems.push('Ausgabe unvollständig/abgeschnitten' + (res.truncatedPath ? ' (Datei ' + res.truncatedPath + ' nicht abgeschlossen)' : ''));\n  for (const f of res.files) {\n    if (isUnsafePath(f.path)) res.problems.push('unsicherer oder leerer Pfad: ' + JSON.stringify(f.path));\n    if (!f.content || !f.content.trim()) res.problems.push('leerer Inhalt: ' + f.path);\n    if (/\\.html?$/i.test(f.path) && !/<\\/html>/i.test(f.content)) res.warnings.push('HTML ohne </html>: ' + f.path);\n  }\n  res.plausible = res.problems.length === 0;\n  return res;\n}\nfunction payloadKey(s) { let h = 5381; for (let i = 0; i < s.length; i++) { h = ((h << 5) + h + s.charCodeAt(i)) | 0; } return s.length + \":\" + (h >>> 0).toString(16); }\n\ntry {\n  const raw = item.json.output || item.json.text || \"\";\n  const ex = extractFiles(raw);\n\n  // Zähler: bisherige Retries DIESES qa_input_payloads (Selbstreferenz wie beim revision_attempt; nach neuem Aggregate_Files-Durchlauf neuer Schlüssel -> 0)\n  let currentKey = \"\";\n  try { currentKey = payloadKey($(\"Aggregate_Files\").first().json.qa_input_payload || \"\"); } catch (e) { currentKey = \"\"; }\n  let prev = null;\n  try { prev = $(\"Format_Repair_Retry\").first().json; } catch (e) { prev = null; }\n  const attemptsSoFar = (prev && currentKey !== \"\" && prev.parse_payload_key === currentKey) ? (prev.parse_repair_attempt || 0) : 0;\n\n  return [{\n    json: {\n      ...item.json,\n      extraction_plausible: ex.plausible,\n      extraction_problems: ex.problems,\n      extraction_method: ex.method,\n      parse_attempts_so_far: attemptsSoFar,\n      can_repair_retry: !ex.plausible && attemptsSoFar < 2,\n    }\n  }];\n} catch (e) {\n  // Das Gate darf die Pipeline nie schlechter machen als vorher: bei einem Fehler im Gate selbst weiter zu Prepare_Disk_Files (das prüft seinerseits fail-closed).\n  return [{ json: { ...item.json, extraction_plausible: true, extraction_problems: [], extraction_method: \"gate_error\", extraction_error: String((e && e.message) || e), parse_attempts_so_far: 0, can_repair_retry: false } }];\n}\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        520
+      ],
+      "id": "check-extraction-node",
+      "name": "Check_Extraction"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "extraction-ok-node-cond",
+              "leftValue": "={{ $json.extraction_plausible }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2032,
+        520
+      ],
+      "id": "extraction-ok-node",
+      "name": "Extraction_OK"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "can-repair-retry-node-cond",
+              "leftValue": "={{ $json.can_repair_retry }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2272,
+        640
+      ],
+      "id": "can-repair-retry-node",
+      "name": "Can_Repair_Retry"
+    },
+    {
+      "parameters": {
+        "jsCode": "function payloadKey(s) { let h = 5381; for (let i = 0; i < s.length; i++) { h = ((h << 5) + h + s.charCodeAt(i)) | 0; } return s.length + \":\" + (h >>> 0).toString(16); }\nconst prev = $input.first().json;   // Ausgabe von Check_Extraction\nconst payload = $(\"Aggregate_Files\").first().json.qa_input_payload;   // dieselbe Eingabe wie beim ersten QA-Lauf\nconst attempt = (prev.parse_attempts_so_far || 0) + 1;\nreturn [{\n  json: {\n    qa_input_payload: payload,\n    parse_repair_attempt: attempt,\n    parse_payload_key: payloadKey(payload || \"\"),\n    parse_repair_reason: (prev.extraction_problems || []).join(\"; \"),\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2512,
+        640
+      ],
+      "id": "format-repair-retry-node",
+      "name": "Format_Repair_Retry"
+    },
+    {
+      "parameters": {
+        "jsCode": "const it = $input.first().json;\nconst total = (it.parse_attempts_so_far || 0) + 1;\nconst problems = (it.extraction_problems || []).slice(0, 3).join(\"; \") || \"unbekannt\";\nconst message = `❌ **Ausgabe des QA-Gatekeepers nicht lesbar**\\n\\nDie generierten Dateien konnten nach ${total} Versuchen nicht zuverlässig gelesen werden (${problems}). Es wurde nichts deployed und nichts nach GitHub gepusht. Bitte die Anfrage erneut senden.`;\nreturn [{ json: { response: message, output: message } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2512,
+        800
+      ],
+      "id": "format-parse-failure-node",
+      "name": "Format_Parse_Failure_Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Punkt G (Marcs Freigabe 26.09., Variante A): deterministischer Frontend-Mock-Scan für index.html.\n// Informativ, blockiert nie. Gemeinsames Modul für Offline-Test, isolierten Test und Live-Patch (der Node-Code wird\n// daraus erzeugt, siehe mock_scan_patch.js). Keine Abhängigkeiten, reine Funktionen.\n//\n// Befundklassen:\n//  fetch_override       fetch/XMLHttpRequest wird im Browser ersetzt (window/globalThis/self.fetch = …, defineProperty,\n//                       XMLHttpRequest.prototype.open/send); Unterart unbedingt/fallback\n//  fabricated_fallback  In einer Funktion, die Daten über fetch holt – direkt oder über eine eigene fetch-Hilfsfunktion\n//                       (Wrapper, z. B. apiCall(url) { … fetch(url) … }) –, entstehen Daten lokal: Math.random (außerhalb\n//                       von Animations-Callbacks und Audio-Code) oder mock/simulat/fallback/demo-Bezeichner im catch-Block\n//  uncalled_routes      Routen aus ui_ux_spec.consumes_routes, die in der Seite nirgends vorkommen (Pfad bis zum ersten\n//                       {param}); nur wenn eine Spec vorliegt\n// Grenzen (bewusst, siehe status.md 26.09.): vorgetäuschter Erfolgs-Status ohne Zufall/Mock-Namen und lokal duplizierte\n// Geschäftslogik werden nicht erkannt.\n\nfunction stripComments(s) {\n  return s.replace(/<!--[\\s\\S]*?-->/g, '').replace(/\\/\\*[\\s\\S]*?\\*\\//g, '').replace(/(^|[^:\\\\'\"`])\\/\\/[^\\n]*/g, '$1');\n}\nfunction blockEnd(code, openIdx) {\n  let d = 1, i = openIdx + 1;\n  for (; i < code.length && d; i++) { if (code[i] === '{') d++; else if (code[i] === '}') d--; }\n  return i;\n}\n// Funktionen mit (falls vorhanden) Namen\nfunction functions(code) {\n  const out = [];\n  const re = /(?:(?:async\\s+)?function\\s*(\\w*)\\s*\\([^)]*\\)\\s*\\{)|(?:(?:const|let|var)\\s+(\\w+)\\s*=\\s*(?:async\\s*)?(?:function\\s*\\w*\\s*\\([^)]*\\)|\\([^)]*\\)\\s*=>|\\w+\\s*=>)\\s*\\{)|(?:(?:async\\s*)?\\([^)]*\\)\\s*=>\\s*\\{)|(?:(?:async\\s+)?\\w+\\s*=>\\s*\\{)/g;\n  let m;\n  while ((m = re.exec(code))) {\n    const open = m.index + m[0].length - 1;\n    const end = blockEnd(code, open);\n    out.push({ name: m[1] || m[2] || '', start: m.index, text: code.slice(m.index, end) });\n  }\n  return out;\n}\nfunction withoutAnimation(body) {\n  let s = body;\n  const re = /\\b(setInterval|setTimeout|requestAnimationFrame)\\s*\\(\\s*(?:async\\s*)?(?:\\([^)]*\\)|\\w+)?\\s*(?:=>)?\\s*(?:function\\s*\\w*\\s*\\([^)]*\\)\\s*)?\\{/g;\n  let m, guard = 0;\n  while ((m = re.exec(s)) && guard++ < 200) { const open = m.index + m[0].length - 1; const end = blockEnd(s, open); s = s.slice(0, m.index) + s.slice(end); re.lastIndex = m.index; }\n  return s.split('\\n').filter(l => !/AudioContext|Oscillator|frequency|\\.gain\\b|gain\\./.test(l)).join('\\n');\n}\nconst OVERRIDE_RE = /\\b(?:window|globalThis|self)\\s*\\.\\s*fetch\\s*=(?!=)|(?:^|[;{}\\s])fetch\\s*=(?!=)\\s*(?:async\\b|function\\b|\\(|[A-Za-z_$])|Object\\.defineProperty\\(\\s*(?:window|globalThis|self)\\s*,\\s*['\"]fetch['\"]|XMLHttpRequest\\.prototype\\.(?:open|send)\\s*=|(?:window|globalThis)\\.XMLHttpRequest\\s*=/;\nconst FETCH_CALL_RE = /\\bfetch\\s*\\(/;\nconst CATCH_FAKE_ID_RE = /\\b\\w*(?:mock|simulat|fallback|demo)\\w*\\s*(?:\\(|\\[|=(?!=)|\\.)/i;\nconst esc = (s) => s.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n\nfunction overrideMode(code, idx) {\n  const body = code.slice(idx, idx + 1500);\n  const firstSynthetic = body.search(/new\\s+Response\\s*\\(|Promise\\.resolve\\s*\\(\\s*\\{|new\\s+Promise\\s*\\(|json\\s*:\\s*(async\\s*)?\\(\\)\\s*=>/);\n  const firstReal = body.search(/await\\s+(orig\\w*|original\\w*|_fetch|realFetch)\\s*(\\.apply)?\\(/);\n  if (firstSynthetic === -1) return 'fallback?';\n  return firstReal !== -1 && firstReal < firstSynthetic ? 'fallback' : 'unbedingt';\n}\nfunction routePaths(routes) {\n  return (Array.isArray(routes) ? routes : []).map(r => String(typeof r === 'string' ? r : (r && r.path) || '')\n    .replace(/^(GET|POST|PUT|PATCH|DELETE)\\s+/i, '').split('{')[0].replace(/\\/+$/, '')).filter(p => p && p !== '');\n}\n\n// html: Inhalt der index.html; consumesRoutes: optional ui_ux_spec.consumes_routes\nfunction scanHtml(html, consumesRoutes) {\n  const code = stripComments(String(html || ''));\n  const findings = [];\n  const om = OVERRIDE_RE.exec(code);\n  if (om) findings.push({ kind: 'fetch_override', mode: overrideMode(code, om.index), evidence: code.slice(om.index, om.index + 160).replace(/\\s+/g, ' ') });\n\n  const fns = functions(code);\n  // Wrapper = benannte Funktion mit fetch-Aufruf; Datenfunktionen = fetch direkt oder Aufruf eines Wrappers\n  const wrappers = [...new Set(fns.filter(f => f.name && FETCH_CALL_RE.test(f.text)).map(f => f.name))];\n  const callsData = (t) => FETCH_CALL_RE.test(t) || wrappers.some(w => new RegExp('\\\\b' + esc(w) + '\\\\s*\\\\(').test(t.slice(t.indexOf('{'))));\n  for (const f of fns.filter(f => callsData(f.text))) {\n    const body = withoutAnimation(f.text);\n    const rnd = /Math\\.random/.exec(body);\n    let ev = rnd ? body.slice(Math.max(0, rnd.index - 80), rnd.index + 90) : null;\n    if (!ev) {\n      const re = /catch\\s*(?:\\([^)]*\\))?\\s*\\{/g; let m;\n      while ((m = re.exec(body)) && !ev) {\n        const blk = body.slice(m.index, blockEnd(body, m.index + m[0].length - 1));\n        if (CATCH_FAKE_ID_RE.test(blk.replace(/(['\"`])(?:\\\\.|(?!\\1).)*\\1/g, '\"\"'))) ev = blk.slice(0, 220);\n      }\n    }\n    if (ev) { findings.push({ kind: 'fabricated_fallback', evidence: ev.replace(/\\s+/g, ' ') }); break; }\n  }\n\n  const paths = routePaths(consumesRoutes);\n  const uncalled = paths.filter(p => !code.includes(p));\n  if (uncalled.length) findings.push({ kind: 'uncalled_routes', routes: uncalled, evidence: `Spec-Routen ohne Aufruf in index.html: ${uncalled.join(', ')}` });\n\n  return { mock: findings.some(f => f.kind !== 'uncalled_routes'), flagged: findings.length > 0, findings, wrappers, checked_routes: paths.length };\n}\n\n// Chat-Text (deutsch, informativ) aus dem Ergebnis; leer, wenn nichts gefunden\nfunction formatMessage(result) {\n  if (!result || !result.flagged) return '';\n  const lines = [];\n  for (const f of result.findings) {\n    if (f.kind === 'fetch_override') lines.push(`- Die Seite ersetzt \\`fetch\\` im Browser (${f.mode === 'unbedingt' ? 'Antworten kommen immer lokal, das Backend wird nicht gefragt' : 'lokale Antworten, wenn das Backend nicht antwortet'}).`);\n    if (f.kind === 'fabricated_fallback') lines.push('- Die Seite erzeugt bei einem Backend-Fehler eigene Daten, statt den Fehler anzuzeigen.');\n    if (f.kind === 'uncalled_routes') lines.push(`- Diese Routen aus der Spezifikation ruft die Seite nie auf: ${f.routes.map(r => '`' + r + '`').join(', ')}.`);\n  }\n  return `ℹ️ **Frontend-Hinweis (informativ, kein Blocker):** Der Mock-Scan hat in \\`index.html\\` Auffälligkeiten gefunden:\\n${lines.join('\\n')}\\nDie App kann dadurch funktionsfähig wirken, obwohl das Backend nicht beteiligt ist.`;\n}\n\n// ---- n8n-Wrapper (Punkt G) ----\n// Informativ, blockiert nie: Alle Eingangs-Items gehen unverändert an Legal_Scan weiter, auch wenn der Scan scheitert.\n// Inhalt nur per helpers.getBinaryDataBuffer lesen (Dateisystem-Modus: .data enthält nur den Marker \"filesystem-v2\").\nconst items = $input.all();\n// Fehlertext robust bilden: in der n8n-Laufzeit kommt nicht jeder Fehler als Error mit Text-message an (isolierter Test 26.09.)\nfunction errText(e) {\n  if (e === null || e === undefined) return 'unbekannter Fehler';\n  if (typeof e === 'string') return e;\n  const m = e.message;\n  if (typeof m === 'string' && m) return m;\n  if (m && typeof m === 'object') { try { return JSON.stringify(m).slice(0, 200); } catch (x) { /* weiter */ } }\n  // n8n-Laufzeit bei fehlender Binärdatei: { level, shouldReport, tags, extra: { filePath } } ohne message (isoliert belegt 26.09.)\n  if (e.extra && typeof e.extra.filePath === 'string') return 'Binärdatei nicht gefunden (' + e.extra.filePath + ')';\n  for (const k of ['description', 'reason', 'code', 'name']) if (typeof e[k] === 'string' && e[k]) return e[k];\n  try { const j = JSON.stringify(e); if (j && j !== '{}') return j.slice(0, 200); } catch (x) { /* weiter */ }\n  const s = String(e);\n  return s === '[object Object]' ? 'Fehlerobjekt ohne Text' : s;\n}\nlet mock_scan;\ntry {\n  let consumes = [];\n  try {\n    const raw = $('Format_Dev_Payload').first().json.raw_spec || {};\n    consumes = (raw.ui_ux_spec && Array.isArray(raw.ui_ux_spec.consumes_routes)) ? raw.ui_ux_spec.consumes_routes : [];\n  } catch (e) { consumes = []; }\n  const idx = items.findIndex(it => it && it.json && it.json.file_name === 'index.html');\n  if (idx === -1) throw new Error('index.html nicht unter den Dateien');\n  if (!items[idx].binary || !items[idx].binary.data) throw new Error('index.html ohne Binärdaten');\n  const html = (await this.helpers.getBinaryDataBuffer(idx, 'data')).toString('utf-8');\n  if (!/</.test(html) || html.trim() === 'filesystem-v2') throw new Error('Inhalt nicht lesbar (' + html.length + ' Bytes)');\n  const r = scanHtml(html, consumes);\n  mock_scan = {\n    mock_status: r.flagged ? 'flagged' : 'clean',\n    message: formatMessage(r),\n    findings: r.findings.map(f => ({ kind: f.kind, mode: f.mode || null, routes: f.routes || null, evidence: String(f.evidence || '').slice(0, 300) })),\n    wrappers: r.wrappers, checked_routes: r.checked_routes, bytes_read: html.length,\n  };\n} catch (e) {\n  const text = errText(e);\n  let keys = [];\n  try { keys = e && typeof e === 'object' ? Object.keys(e).slice(0, 10) : []; } catch (x) { keys = []; }\n  mock_scan = {\n    mock_status: 'scan_failed', findings: [], error: text,\n    error_type: Object.prototype.toString.call(e), error_keys: keys,\n    message: '⚠️ **Frontend-Hinweis:** Der Mock-Scan konnte index.html nicht prüfen (' + text + ') – Ergebnis unbekannt.',\n  };\n}\nif (items.length === 0) return items;\nreturn items.map((it, i) => (i === 0 ? Object.assign({}, it, { json: Object.assign({}, it.json, { mock_scan }) }) : it));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        2400
+      ],
+      "id": "7d0c6f2e-5a51-4b0e-9d1a-6f0a2b3c4d5e",
+      "name": "Mock_Scan"
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Product Owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Product Owner",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Product Owner",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Format_Dev_Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dev_Frontend": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dev_Backend": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Aggregate_Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "QA_Gatekeeper",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Check_Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check_Retry_Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Product Owner": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QA_Gatekeeper": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare_Disk_Files": {
+      "main": [
+        [
+          {
+            "node": "Ensure_Remote_Dir",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Port_Counter",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Sync_Upload_Gate",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "Sync_GitHub_Gate",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Format_Dev_Payload": {
+      "main": [
+        [
+          {
+            "node": "Dev_Frontend",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Dev_Backend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Dev_Backend",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate_Files": {
+      "main": [
+        [
+          {
+            "node": "QA_Gatekeeper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Dev_Frontend",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure_Remote_Dir": {
+      "main": [
+        [
+          {
+            "node": "Sync_Upload_Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload a file": {
+      "main": [
+        [
+          {
+            "node": "Merge_Build_Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Port_Counter": {
+      "main": [
+        [
+          {
+            "node": "Merge_Build_Inputs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge_Build_Inputs": {
+      "main": [
+        [
+          {
+            "node": "Build_Command_Builder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build_And_Run": {
+      "main": [
+        [
+          {
+            "node": "Check_Build_Exit_Code",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Sync_Upload_Gate": {
+      "main": [
+        [
+          {
+            "node": "Upload a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check_Build_Exit_Code": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format_Reject_Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build_Command_Builder": {
+      "main": [
+        [
+          {
+            "node": "Build_And_Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create_GitHub_Repo": {
+      "main": [
+        [
+          {
+            "node": "Sync_GitHub_Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sync_GitHub_Gate": {
+      "main": [
+        [
+          {
+            "node": "Secret_Scan",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Compliance_Scan",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Mock_Scan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Secret_Scan": {
+      "main": [
+        [
+          {
+            "node": "Secret_Scan_Gate_Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Secret_Scan_Gate_Check": {
+      "main": [
+        [
+          {
+            "node": "GitHub_Push_Files",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "GitHub_Push_Blocked_SecretFound",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Format_Success_Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create_GitHub_Repo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Feedback_Bugfix_Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check_Retry_Limit": {
+      "main": [
+        [
+          {
+            "node": "Feedback_Bugfix_Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format_Reject_Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Feedback_Bugfix_Agent": {
+      "main": [
+        [
+          {
+            "node": "Format_Correction_Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format_Correction_Payload": {
+      "main": [
+        [
+          {
+            "node": "Needs_Backend_Fix",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Needs_Frontend_Fix",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs_Backend_Fix": {
+      "main": [
+        [
+          {
+            "node": "Dev_Backend",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Needs_Frontend_Fix": {
+      "main": [
+        [
+          {
+            "node": "Dev_Frontend",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Format_Success_Response": {
+      "main": [
+        [
+          {
+            "node": "Sync_Response_Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub_Push_Files": {
+      "main": [
+        [
+          {
+            "node": "Format_GitHub_Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub_Push_Blocked_SecretFound": {
+      "main": [
+        [
+          {
+            "node": "Format_GitHub_Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format_GitHub_Outcome": {
+      "main": [
+        [
+          {
+            "node": "Sync_Response_Gate",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Sync_Response_Gate": {
+      "main": [
+        [
+          {
+            "node": "Sync_Compliance_Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model5": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Compliance_Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compliance_Scan": {
+      "main": [
+        [
+          {
+            "node": "Compliance_Gate_Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compliance_Gate_Check": {
+      "main": [
+        [
+          {
+            "node": "Build_Compliance_Input",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format_Compliance_Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build_Compliance_Input": {
+      "main": [
+        [
+          {
+            "node": "Compliance_Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compliance_Agent": {
+      "main": [
+        [
+          {
+            "node": "Format_Compliance_Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format_Compliance_Outcome": {
+      "main": [
+        [
+          {
+            "node": "Sync_Compliance_Gate",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Sync_Compliance_Gate": {
+      "main": [
+        [
+          {
+            "node": "Sync_Legal_Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Legal_Scan": {
+      "main": [
+        [
+          {
+            "node": "Sync_Legal_Gate",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Sync_Legal_Gate": {
+      "main": [
+        [
+          {
+            "node": "Format_Final_Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check_Extraction": {
+      "main": [
+        [
+          {
+            "node": "Extraction_OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraction_OK": {
+      "main": [
+        [
+          {
+            "node": "Prepare_Disk_Files",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Can_Repair_Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Can_Repair_Retry": {
+      "main": [
+        [
+          {
+            "node": "Format_Repair_Retry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format_Parse_Failure_Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format_Repair_Retry": {
+      "main": [
+        [
+          {
+            "node": "QA_Gatekeeper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock_Scan": {
+      "main": [
+        [
+          {
+            "node": "Legal_Scan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "active": false
+}

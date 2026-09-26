@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zinsrechner App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex items-center justify-center p-4 sm:p-6">
+  <div class="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+    <!-- Header -->
+    <div class="bg-emerald-600 px-6 py-6 text-white text-center relative">
+      <div class="inline-flex p-3 bg-emerald-500/30 rounded-full mb-2">
+        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+      <h1 class="text-2xl font-bold">Zinsrechner</h1>
+      <p class="text-emerald-100 text-sm mt-1">Zinseszins berechnen mit FastAPI Backend</p>
+    </div>
+
+    <!-- Content Container -->
+    <div class="p-6 space-y-6">
+      <!-- Error Banner -->
+      <div id="error-banner" class="hidden bg-red-50 border-l-4 border-red-500 p-4 rounded-r text-sm text-red-700 space-y-1">
+        <div class="font-medium flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+          </svg>
+          <span>Fehler bei der Berechnung</span>
+        </div>
+        <p id="error-message" class="text-red-600 pl-5.5">Bitte überprüfen Sie Ihre Eingaben.</p>
+      </div>
+
+      <!-- Form -->
+      <form id="calc-form" class="space-y-4">
+        <div>
+          <label for="kapital" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Anfangskapital (€)</label>
+          <div class="relative">
+            <input type="number" step="0.01" min="0.01" max="1000000000000" id="kapital" required placeholder="z.B. 1000.00" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition text-slate-800">
+            <span class="absolute right-3 top-2.5 text-slate-400 font-medium">€</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="zinssatz" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Zinssatz (%)</label>
+            <div class="relative">
+              <input type="number" step="0.01" min="0" max="1000" id="zinssatz" required placeholder="z.B. 5.0" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition text-slate-800">
+              <span class="absolute right-3 top-2.5 text-slate-400 font-medium">%</span>
+            </div>
+          </div>
+          <div>
+            <label for="laufzeit" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Laufzeit (Jahre)</label>
+            <div class="relative">
+              <input type="number" step="0.1" min="0.01" max="1000" id="laufzeit" required placeholder="z.B. 2.5" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition text-slate-800">
+              <span class="absolute right-3 top-2.5 text-slate-400 font-medium">J.</span>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" id="submit-btn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-200 flex items-center justify-center gap-2">
+          <span id="btn-text">Zinsen berechnen</span>
+          <svg id="spinner" class="hidden animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </button>
+      </form>
+
+      <!-- Results Cards -->
+      <div id="results" class="hidden space-y-4 pt-2 border-t border-slate-200">
+        <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wider">Ergebnis Übersicht</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+            <span class="text-xs font-medium text-emerald-800 uppercase block mb-1">Zinsertrag</span>
+            <span id="res-zinsertrag" class="text-2xl font-bold text-emerald-700">0,00 €</span>
+          </div>
+          <div class="bg-slate-800 text-white rounded-xl p-4">
+            <span class="text-xs font-medium text-slate-300 uppercase block mb-1">Endkapital</span>
+            <span id="res-endkapital" class="text-2xl font-bold text-emerald-400">0,00 €</span>
+          </div>
+        </div>
+        <div class="text-xs text-slate-500 text-center pt-1">
+          Basierend auf <span id="res-details">1.000 € über 2,5 Jahre bei 5,0% Zinsen</span>.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('calc-form');
+    const errorBanner = document.getElementById('error-banner');
+    const errorMessage = document.getElementById('error-message');
+    const resultsSection = document.getElementById('results');
+    const submitBtn = document.getElementById('submit-btn');
+    const btnText = document.getElementById('btn-text');
+    const spinner = document.getElementById('spinner');
+
+    const formatEUR = (num) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(num);
+    const formatNum = (num) => new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 }).format(num);
+
+    function showError(msg) {
+      errorMessage.textContent = msg;
+      errorBanner.classList.remove('hidden');
+    }
+
+    function hideError() {
+      errorBanner.classList.add('hidden');
+    }
+
+    function setLoading(isLoading) {
+      if (isLoading) {
+        submitBtn.disabled = true;
+        btnText.textContent = 'Berechne...';
+        spinner.classList.remove('hidden');
+      } else {
+        submitBtn.disabled = false;
+        btnText.textContent = 'Zinsen berechnen';
+        spinner.classList.add('hidden');
+      }
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideError();
+
+      const kapital = parseFloat(document.getElementById('kapital').value);
+      const zinssatz = parseFloat(document.getElementById('zinssatz').value);
+      const laufzeit_jahre = parseFloat(document.getElementById('laufzeit').value);
+
+      // Client-side Validation
+      if (isNaN(kapital) || kapital <= 0) {
+        showError('Das Kapital muss größer als 0 € sein.');
+        return;
+      }
+      if (isNaN(zinssatz) || zinssatz < 0) {
+        showError('Der Zinssatz darf nicht negativ sein.');
+        return;
+      }
+      if (isNaN(laufzeit_jahre) || laufzeit_jahre <= 0) {
+        showError('Die Laufzeit muss größer als 0 Jahre sein.');
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        const response = await fetch('/api/calculate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kapital, zinssatz, laufzeit_jahre })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          document.getElementById('res-zinsertrag').textContent = formatEUR(data.zinsertrag);
+          document.getElementById('res-endkapital').textContent = formatEUR(data.endkapital);
+          document.getElementById('res-details').textContent = 
+            `${formatEUR(data.startkapital)} über ${formatNum(data.laufzeit_jahre)} Jahre bei ${formatNum(data.zinssatz)}% Zinsen`;
+          resultsSection.classList.remove('hidden');
+        } else {
+          const errData = await response.json().catch(() => null);
+          const msg = errData?.detail ? (Array.isArray(errData.detail) ? errData.detail[0].msg : errData.detail) : 'Fehler bei der Serverberechnung.';
+          showError(msg);
+        }
+      } catch (err) {
+        showError('Netzwerkfehler: Verbindung zum Server fehlgeschlagen.');
+      } finally {
+        setLoading(false);
+      }
+    });
+  </script>
+</body>
+</html>

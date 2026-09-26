@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mini-App Würfel</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes diceShake {
+      0% { transform: rotate(0deg) scale(1); }
+      20% { transform: rotate(-12deg) scale(0.95); }
+      40% { transform: rotate(12deg) scale(1.05); }
+      60% { transform: rotate(-8deg) scale(0.98); }
+      80% { transform: rotate(8deg) scale(1.02); }
+      100% { transform: rotate(0deg) scale(1); }
+    }
+    .animate-shake {
+      animation: diceShake 0.35s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4 font-sans selection:bg-indigo-500 selection:text-white">
+  <main class="w-full max-w-sm bg-slate-900/90 border border-slate-800 rounded-3xl p-8 shadow-2xl backdrop-blur-xl flex flex-col items-center gap-6 relative overflow-hidden">
+    <!-- Background Glow Accent -->
+    <div class="absolute -top-24 -left-24 w-48 h-48 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-purple-600/20 rounded-full blur-3xl pointer-events-none"></div>
+
+    <!-- Title Header -->
+    <header class="text-center z-10">
+      <div class="inline-flex items-center gap-2 text-indigo-400 text-xs font-semibold uppercase tracking-widest bg-indigo-950/60 border border-indigo-800/40 px-3 py-1 rounded-full mb-2">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3" y="3" width="18" height="18" rx="4" stroke-width="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
+          <circle cx="15.5" cy="15.5" r="1.5" fill="currentColor"/>
+        </svg>
+        <span>Zufallsgenerator</span>
+      </div>
+      <h1 class="text-2xl font-bold text-white tracking-tight">Mini-App Würfel</h1>
+    </header>
+
+    <!-- Dice Display Card -->
+    <div class="w-full flex flex-col items-center gap-4 my-2 z-10">
+      <div id="dice" class="w-36 h-36 bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-slate-700/80 rounded-3xl shadow-2xl shadow-indigo-950/50 flex items-center justify-center relative p-3 transition-transform duration-200">
+        <!-- 3x3 Grid for Dice Dots -->
+        <div class="grid grid-cols-3 gap-2.5 w-full h-full p-2.5 bg-slate-950/60 rounded-2xl border border-slate-800/80 items-center justify-items-center shadow-inner">
+          <!-- 9 Dot Slots (0 to 8) -->
+          <div class="dice-dot w-4 h-4 rounded-full bg-indigo-400 shadow-[0_0_10px_rgba(129,140,248,0.9)] opacity-0 scale-50 transition-all duration-150"></div>
+          <div class="dice-dot w-4 h-4 rounded-full bg-indigo-400 shadow-[0_0_10px_rgba(129,140,248,0.9)] opacity-0 scale-50 transition-all duration-150"></div>
+          <div class="dice-dot w-4 h-4 rounded-full bg-indigo-400 shadow-[0_0_10px_rgba(129,140,248,0.9)] opacity-0 scale-50 transition-all duration-150"></div>
+          <div class="dice-dot w-4 h-4 rounded-full bg-indigo-400 shadow-[0_0_10px_rgba(129,140,248,0.9)] opacity-0 scale-50 transition-all duration-150"></div>
+          <div class="dice-dot w-4 h-4 rounded-full bg-indigo-400 shadow-[0_0_10px_rgba(129,140,248,0.9)] opacity-0 scale-50 transition-all duration-150"></div>
+          <div class="dice-dot w-4 h-4 rounded-full bg-indigo-400 shadow-[0_0_10px_rgba(129,140,248,0.9)] opacity-0 scale-50 transition-all duration-150"></div>
+          <div class="dice-dot w-4 h-4 rounded-full bg-indigo-400 shadow-[0_0_10px_rgba(129,140,248,0.9)] opacity-0 scale-50 transition-all duration-150"></div>
+          <div class="dice-dot w-4 h-4 rounded-full bg-indigo-400 shadow-[0_0_10px_rgba(129,140,248,0.9)] opacity-0 scale-50 transition-all duration-150"></div>
+          <div class="dice-dot w-4 h-4 rounded-full bg-indigo-400 shadow-[0_0_10px_rgba(129,140,248,0.9)] opacity-0 scale-50 transition-all duration-150"></div>
+        </div>
+      </div>
+
+      <!-- Prominent Result Number Display -->
+      <div class="text-center flex flex-col items-center justify-center mt-1">
+        <span class="text-xs font-medium uppercase tracking-wider text-slate-400">Augenzahl</span>
+        <div id="dice-value" class="text-5xl font-black text-indigo-400 min-h-[3.5rem] flex items-center justify-center tracking-tight transition-all duration-200">?</div>
+      </div>
+    </div>
+
+    <!-- Error Banner -->
+    <div id="error-message" class="hidden w-full text-xs text-rose-300 bg-rose-950/60 border border-rose-800/80 rounded-xl p-3 text-center z-10"></div>
+
+    <!-- Action Button -->
+    <button id="roll-btn" class="w-full py-4 px-6 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold rounded-2xl shadow-lg shadow-indigo-600/30 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 z-10">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+      </svg>
+      <span id="btn-text">Würfeln</span>
+    </button>
+  </main>
+
+  <script>
+    const rollBtn = document.getElementById('roll-btn');
+    const btnText = document.getElementById('btn-text');
+    const diceContainer = document.getElementById('dice');
+    const diceValueText = document.getElementById('dice-value');
+    const errorMessage = document.getElementById('error-message');
+    const dots = document.querySelectorAll('.dice-dot');
+
+    // Matrix mapping for dice dots (3x3 grid, indices 0-8)
+    const dotPatterns = {
+      1: [4],
+      2: [2, 6],
+      3: [2, 4, 6],
+      4: [0, 2, 6, 8],
+      5: [0, 2, 4, 6, 8],
+      6: [0, 2, 3, 5, 6, 8]
+    };
+
+    function renderDice(num) {
+      if (num && dotPatterns[num]) {
+        diceValueText.textContent = String(num);
+      } else {
+        diceValueText.textContent = '?';
+      }
+      
+      const activeIndices = (num && dotPatterns[num]) ? dotPatterns[num] : [];
+      dots.forEach((dot, idx) => {
+        if (activeIndices.includes(idx)) {
+          dot.classList.remove('opacity-0', 'scale-50');
+          dot.classList.add('opacity-100', 'scale-100');
+        } else {
+          dot.classList.remove('opacity-100', 'scale-100');
+          dot.classList.add('opacity-0', 'scale-50');
+        }
+      });
+    }
+
+    async function handleRoll() {
+      errorMessage.classList.add('hidden');
+      errorMessage.textContent = '';
+      rollBtn.disabled = true;
+      btnText.textContent = 'Würfelt...';
+      diceContainer.classList.add('animate-shake');
+
+      let cycleCount = 0;
+      const cycleInterval = setInterval(() => {
+        const randomTemp = Math.floor(Math.random() * 6) + 1;
+        renderDice(randomTemp);
+        cycleCount++;
+      }, 60);
+
+      try {
+        const response = await fetch('/api/roll');
+        if (!response.ok) {
+          throw new Error('Fehler beim Abrufen des Würfelergebnisses.');
+        }
+        const data = await response.json();
+
+        // Ensure visual rolling runs for at least 350ms
+        const minCycleDelay = Math.max(0, 350 - cycleCount * 60);
+        await new Promise(resolve => setTimeout(resolve, minCycleDelay));
+        clearInterval(cycleInterval);
+
+        if (data && typeof data.result === 'number' && data.result >= 1 && data.result <= 6) {
+          renderDice(data.result);
+          diceContainer.classList.remove('animate-shake');
+          diceContainer.classList.add('scale-105');
+          setTimeout(() => diceContainer.classList.remove('scale-105'), 200);
+        } else {
+          throw new Error('Ungültiges Ergebnis vom Server erhalten.');
+        }
+      } catch (err) {
+        clearInterval(cycleInterval);
+        renderDice(null);
+        errorMessage.textContent = err.message || 'Ein unerwarteter Fehler ist aufgetreten.';
+        errorMessage.classList.remove('hidden');
+      } finally {
+        diceContainer.classList.remove('animate-shake');
+        rollBtn.disabled = false;
+        btnText.textContent = 'Würfeln';
+      }
+    }
+
+    rollBtn.addEventListener('click', handleRoll);
+  </script>
+</body>
+</html>

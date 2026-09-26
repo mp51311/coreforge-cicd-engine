@@ -1,0 +1,7 @@
+node_modules/
+.env
+.env.*
+*.local.json
+examples/reference/
+examples/mock_scan_isolated_results.json
+examples/test_mock_scan_isolated_workflow_*.json

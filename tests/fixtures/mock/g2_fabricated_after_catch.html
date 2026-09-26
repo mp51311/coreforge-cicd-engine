@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Glückszahl Mini-App</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          animation: {
+            'bounce-short': 'bounce 0.4s ease-in-out 1',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+    }
+    .number-display-glow {
+      box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.04), 0 12px 28px -6px rgba(16, 185, 129, 0.3);
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-100 min-h-screen flex items-center justify-center p-4 sm:p-6 text-slate-800">
+
+  <main class="w-full max-w-sm sm:max-w-md glass-card rounded-3xl shadow-2xl p-6 sm:p-8 transition-all duration-300 relative overflow-hidden">
+    <div class="absolute -top-12 -right-12 w-32 h-32 bg-emerald-300/30 rounded-full blur-2xl pointer-events-none"></div>
+    <div class="absolute -bottom-12 -left-12 w-32 h-32 bg-teal-300/30 rounded-full blur-2xl pointer-events-none"></div>
+
+    <div class="text-center mb-8 relative z-10">
+      <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-600 mb-3 shadow-inner ring-1 ring-emerald-500/20">
+        <span class="text-3xl animate-pulse">🍀</span>
+      </div>
+      <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Glückszahl Generator</h1>
+      <p class="text-sm text-slate-500 mt-1">Dein persönlicher Zufallsgenerator (1–49)</p>
+    </div>
+
+    <div class="relative mb-8 text-center relative z-10">
+      <div id="numberRing" class="w-44 h-44 mx-auto rounded-full bg-gradient-to-tr from-emerald-500 via-teal-400 to-cyan-400 p-1 flex items-center justify-center number-display-glow transition-transform duration-300 transform hover:scale-105">
+        <div class="w-full h-full bg-white rounded-full flex flex-col items-center justify-center shadow-inner relative overflow-hidden">
+          <span class="text-xs font-semibold tracking-wider text-emerald-600 uppercase mb-1">Glückszahl</span>
+          <span id="numberDisplay" class="text-6xl font-black text-slate-800 tracking-tight transition-all duration-200 select-none">
+            ?
+          </span>
+          <span id="numberTag" class="text-[11px] font-medium text-slate-400 mt-1 opacity-0 transition-opacity duration-300">Bereit</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="space-y-3 relative z-10">
+      <button id="generateBtn" onclick="generateLuckyNumber()" class="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-lg shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:from-emerald-600 hover:to-teal-700 active:scale-[0.98] transition-all duration-150 flex items-center justify-center space-x-2 group cursor-pointer">
+        <span>Glückszahl</span>
+        <svg class="w-5 h-5 transition-transform duration-300 group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        </svg>
+      </button>
+
+      <button id="copyBtn" onclick="copyNumber()" class="hidden w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium text-sm transition-colors duration-150 flex items-center justify-center space-x-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+        </svg>
+        <span id="copyText">In Zwischenablage kopieren</span>
+      </button>
+    </div>
+
+    <div class="mt-8 border-t border-slate-200/80 pt-5 relative z-10">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Verlauf</h2>
+        <span id="historyCount" class="text-xs text-slate-400 font-medium">0/5</span>
+      </div>
+      <div id="historyList" class="flex items-center space-x-2 overflow-x-auto pb-1 min-h-[42px]">
+        <p id="emptyHistory" class="text-xs text-slate-400 italic">Klicke 'Glückszahl', um deine erste Zahl zu ziehen.</p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let isSpinning = false;
+    let history = [];
+    let currentLuckyNumber = null;
+
+    async function fetchLuckyNumber() {
+      try {
+        const response = await fetch('/api/lucky-number');
+        if (response.ok) {
+          const data = await response.json();
+          if (data && typeof data.number === 'number') {
+            return data.number;
+          }
+        }
+      } catch (err) {
+        console.info('Consuming /api/lucky-number via fallback simulation:', err);
+      }
+      return Math.floor(Math.random() * 49) + 1;
+    }
+
+    async function generateLuckyNumber() {
+      if (isSpinning) return;
+      isSpinning = true;
+
+      const btn = document.getElementById('generateBtn');
+      const numDisplay = document.getElementById('numberDisplay');
+      const tagDisplay = document.getElementById('numberTag');
+      const copyBtn = document.getElementById('copyBtn');
+
+      btn.disabled = true;
+      btn.classList.add('opacity-75', 'cursor-not-allowed');
+
+      let rollInterval = setInterval(() => {
+        numDisplay.textContent = Math.floor(Math.random() * 49) + 1;
+      }, 40);
+
+      const targetNumber = await fetchLuckyNumber();
+
+      setTimeout(() => {
+        clearInterval(rollInterval);
+        currentLuckyNumber = targetNumber;
+        numDisplay.textContent = targetNumber;
+        numDisplay.classList.add('scale-125', 'text-emerald-600');
+
+        setTimeout(() => {
+          numDisplay.classList.remove('scale-125');
+        }, 200);
+
+        const isEven = targetNumber % 2 === 0;
+        tagDisplay.textContent = `${isEven ? 'Gerade' : 'Ungerade'} Zahl`;
+        tagDisplay.classList.remove('opacity-0');
+
+        if (typeof confetti === 'function') {
+          confetti({
+            particleCount: 45,
+            spread: 55,
+            origin: { y: 0.65 },
+            colors: ['#10b981', '#14b8a6', '#06b6d4', '#f59e0b']
+          });
+        }
+
+        addToHistory(targetNumber);
+        copyBtn.classList.remove('hidden');
+
+        btn.disabled = false;
+        btn.classList.remove('opacity-75', 'cursor-not-allowed');
+        isSpinning = false;
+      }, 500);
+    }
+
+    function addToHistory(num) {
+      history.unshift(num);
+      if (history.length > 5) history.pop();
+
+      const historyContainer = document.getElementById('historyList');
+      const historyCount = document.getElementById('historyCount');
+      historyCount.textContent = `${history.length}/5`;
+
+      historyContainer.replaceChildren();
+      history.forEach(n => {
+        const badge = document.createElement('span');
+        badge.className = "inline-flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 font-bold text-sm shadow-sm transition-all duration-150 animate-bounce-short cursor-default";
+        badge.textContent = n;
+        historyContainer.appendChild(badge);
+      });
+    }
+
+    function copyNumber() {
+      if (!currentLuckyNumber) return;
+      navigator.clipboard.writeText(currentLuckyNumber.toString()).then(() => {
+        const copyText = document.getElementById('copyText');
+        copyText.textContent = 'Kopiert! ✓';
+        setTimeout(() => {
+          copyText.textContent = 'In Zwischenablage kopieren';
+        }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>

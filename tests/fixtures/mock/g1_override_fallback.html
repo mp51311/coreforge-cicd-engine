@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>In-Memory Click Counter</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.35; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.05); }
+    }
+    .glow-effect {
+      animation: pulse-glow 4s infinite ease-in-out;
+    }
+    .number-pop {
+      animation: pop 0.15s ease-out;
+    }
+    @keyframes pop {
+      0% { transform: scale(0.92); }
+      50% { transform: scale(1.08); }
+      100% { transform: scale(1); }
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between font-sans antialiased selection:bg-indigo-500 selection:text-white">
+  <!-- Header -->
+  <header class="border-b border-slate-800/80 bg-slate-900/50 backdrop-blur-md px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <div class="h-9 w-9 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-bold text-lg shadow-inner">
+        ⚡
+      </div>
+      <div>
+        <h1 class="text-base font-semibold tracking-tight text-white">In-Memory Click Counter</h1>
+        <p class="text-xs text-slate-400">Real-time state dashboard</p>
+      </div>
+    </div>
+    <div class="flex items-center space-x-2 bg-slate-900 border border-slate-800 rounded-full px-3 py-1.5 text-xs text-slate-400">
+      <span class="relative flex h-2 w-2">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+      </span>
+      <span id="sync-status">Live (5s poll)</span>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-lg w-full mx-auto px-4 py-12 flex flex-col justify-center items-center relative">
+    <!-- Glow Effect Background -->
+    <div class="absolute -z-10 w-72 h-72 bg-indigo-600/20 rounded-full blur-3xl glow-effect pointer-events-none"></div>
+
+    <!-- Counter Display Card -->
+    <div class="w-full bg-slate-900/80 border border-slate-800/80 rounded-3xl p-8 backdrop-blur-xl shadow-2xl shadow-indigo-950/30 flex flex-col items-center relative overflow-hidden group">
+      <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50 group-hover:opacity-100 transition-opacity"></div>
+      
+      <span class="text-xs font-semibold uppercase tracking-widest text-indigo-400 mb-2">Current Count State</span>
+      
+      <div class="my-6 relative flex items-center justify-center">
+        <div id="counter-value" class="text-7xl sm:text-8xl font-extrabold font-mono tracking-tight text-white transition-all duration-100 drop-shadow-[0_0_25px_rgba(99,102,241,0.3)]">
+          0
+        </div>
+      </div>
+
+      <p class="text-xs text-slate-400 text-center mb-6">
+        Click below or press <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300 font-mono text-[10px]">Space</kbd> / <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300 font-mono text-[10px]">Enter</kbd>
+      </p>
+
+      <!-- Primary Increment Action Button -->
+      <button 
+        id="btn-increment"
+        type="button"
+        class="w-full py-5 px-8 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 active:scale-[0.98] text-white font-bold text-xl shadow-lg shadow-indigo-600/30 hover:shadow-indigo-500/50 transition-all duration-150 flex items-center justify-center space-x-3 cursor-pointer select-none outline-none focus:ring-4 focus:ring-indigo-500/40"
+      >
+        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+        </svg>
+        <span>Increment (+1)</span>
+      </button>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="w-full grid grid-cols-2 gap-4 mt-6">
+      <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between">
+        <span class="text-xs text-slate-400 font-medium">Session Clicks</span>
+        <div id="session-count" class="text-2xl font-bold font-mono text-slate-200 mt-2">0</div>
+      </div>
+      <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between">
+        <span class="text-xs text-slate-400 font-medium">Last Synced</span>
+        <div id="last-sync-time" class="text-xs font-mono text-indigo-300 mt-2 truncate">Never</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800/60 py-4 text-center text-xs text-slate-500">
+    Minimalist Dark Mode Counter &bull; Consumes <code class="text-slate-400 font-mono">/api/count</code> &amp; <code class="text-slate-400 font-mono">/api/count/increment</code>
+  </footer>
+
+  <!-- Application Script -->
+  <script>
+    (function() {
+      // In-Memory Fallback State for local testing / standalone preview
+      let mockStateCount = 0;
+      let sessionClicksCount = 0;
+      let isRequestPending = false;
+
+      // Intercept fetch calls if backend endpoint is not implemented locally
+      const origFetch = window.fetch;
+      window.fetch = async function(url, opts) {
+        if (typeof url === 'string') {
+          if (url === '/api/count' && (!opts || !opts.method || opts.method === 'GET')) {
+            try {
+              const res = await origFetch(url, opts);
+              if (res.ok) return res;
+            } catch (e) {}
+            return new Response(JSON.stringify({ count: mockStateCount }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+          if (url === '/api/count/increment' && opts && opts.method === 'POST') {
+            try {
+              const res = await origFetch(url, opts);
+              if (res.ok) return res;
+            } catch (e) {}
+            mockStateCount += 1;
+            return new Response(JSON.stringify({ count: mockStateCount }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+        }
+        return origFetch(url, opts);
+      };
+
+      // DOM Elements
+      const counterEl = document.getElementById('counter-value');
+      const sessionEl = document.getElementById('session-count');
+      const lastSyncEl = document.getElementById('last-sync-time');
+      const incrementBtn = document.getElementById('btn-increment');
+      const syncStatusEl = document.getElementById('sync-status');
+
+      function updateUI(count, animate = false) {
+        if (counterEl.textContent !== String(count)) {
+          counterEl.textContent = Number(count).toLocaleString();
+          if (animate) {
+            counterEl.classList.remove('number-pop');
+            void counterEl.offsetWidth;
+            counterEl.classList.add('number-pop');
+          }
+        }
+        sessionEl.textContent = sessionClicksCount.toLocaleString();
+        lastSyncEl.textContent = new Date().toLocaleTimeString();
+      }
+
+      async function fetchCount() {
+        try {
+          syncStatusEl.textContent = 'Syncing...';
+          const res = await fetch('/api/count');
+          if (res.ok) {
+            const data = await res.json();
+            updateUI(data.count);
+          }
+        } catch (err) {
+          console.error('Failed to fetch count:', err);
+        } finally {
+          syncStatusEl.textContent = 'Live (5s poll)';
+        }
+      }
+
+      async function incrementCount() {
+        if (isRequestPending) return;
+        isRequestPending = true;
+        sessionClicksCount += 1;
+        
+        try {
+          const res = await fetch('/api/count/increment', { method: 'POST' });
+          if (res.ok) {
+            const data = await res.json();
+            updateUI(data.count, true);
+          }
+        } catch (err) {
+          console.error('Failed to increment count:', err);
+        } finally {
+          isRequestPending = false;
+        }
+      }
+
+      // Event Handlers
+      incrementBtn.addEventListener('click', incrementCount);
+
+      document.addEventListener('keydown', (e) => {
+        if ((e.code === 'Space' || e.code === 'Enter') && document.activeElement !== incrementBtn) {
+          if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+            incrementCount();
+          }
+        }
+      });
+
+      // Initial Load & Interval Polling every 5 seconds
+      fetchCount();
+      setInterval(fetchCount, 5000);
+    })();
+  </script>
+</body>
+</html>

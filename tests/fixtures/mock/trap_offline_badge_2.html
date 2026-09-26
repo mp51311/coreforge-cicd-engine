@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="de" class="h-full bg-slate-900 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zufallszahlen-Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="h-full flex flex-col items-center justify-center p-4 antialiased">
+  <div class="max-w-md w-full bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-2xl space-y-6">
+    <!-- Header with Health Badge -->
+    <div class="flex items-center justify-between border-b border-slate-700 pb-4">
+      <div>
+        <h1 class="text-xl font-bold text-white">Zufallszahlen App</h1>
+        <p class="text-xs text-slate-400">FastAPI & Vanilla JS Integration</p>
+      </div>
+      <div id="health-badge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-700 text-slate-300">
+        <span id="health-dot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+        <span id="health-text">Prüfe Status...</span>
+      </div>
+    </div>
+
+    <!-- Random Number Display Card -->
+    <div class="bg-slate-900 border border-slate-700/60 rounded-xl p-8 text-center space-y-2">
+      <span class="text-xs font-medium tracking-wider text-slate-400 uppercase">Aktuelle Zahl</span>
+      <div id="number-display" class="text-6xl font-black text-indigo-400 tracking-tight transition-all duration-200">
+        --
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="space-y-3">
+      <button 
+        id="btn-generate"
+        type="button" 
+        class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-medium rounded-xl shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+        <svg id="btn-spinner" class="hidden animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span>Zahl ziehen</span>
+      </button>
+
+      <p id="error-message" class="text-xs text-red-400 text-center min-h-[1rem] transition-opacity opacity-0"></p>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const healthBadge = document.getElementById("health-badge");
+      const healthDot = document.getElementById("health-dot");
+      const healthText = document.getElementById("health-text");
+      const numberDisplay = document.getElementById("number-display");
+      const btnGenerate = document.getElementById("btn-generate");
+      const btnSpinner = document.getElementById("btn-spinner");
+      const errorMessage = document.getElementById("error-message");
+
+      function showError(msg) {
+        errorMessage.textContent = msg;
+        errorMessage.classList.remove("opacity-0");
+      }
+
+      function clearError() {
+        errorMessage.textContent = "";
+        errorMessage.classList.add("opacity-0");
+      }
+
+      async function checkHealth() {
+        try {
+          const res = await fetch("/health");
+          if (res.ok) {
+            const data = await res.json();
+            if (data.status === "ok") {
+              healthBadge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+              healthDot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+              healthText.textContent = "Online";
+              return;
+            }
+          }
+          throw new Error("System ungesund");
+        } catch (err) {
+          healthBadge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20";
+          healthDot.className = "w-2 h-2 rounded-full bg-red-400";
+          healthText.textContent = "Offline";
+        }
+      }
+
+      async function fetchRandomNumber() {
+        clearError();
+        btnGenerate.disabled = true;
+        btnSpinner.classList.remove("hidden");
+
+        try {
+          const res = await fetch("/api/random");
+          if (!res.ok) {
+            throw new Error(`Fehler beim Laden (${res.status})`);
+          }
+          const data = await res.json();
+          if (typeof data.number === "number") {
+            numberDisplay.textContent = String(data.number);
+          } else {
+            throw new Error("Ungültiges Datenformat");
+          }
+        } catch (err) {
+          showError(err.message || "Netzwerkfehler aufgetreten");
+        } finally {
+          btnGenerate.disabled = false;
+          btnSpinner.classList.add("hidden");
+        }
+      }
+
+      btnGenerate.addEventListener("click", (e) => {
+        e.preventDefault();
+        fetchRandomNumber();
+      });
+
+      // Initial health check and periodic polling
+      checkHealth();
+      setInterval(checkHealth, 10000);
+    });
+  </script>
+</body>
+</html>

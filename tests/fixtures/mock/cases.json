@@ -1,0 +1,167 @@
+[
+  {
+    "file": "g1_override_unconditional.html",
+    "label": "mock",
+    "expect": [
+      "fetch_override"
+    ],
+    "mode": "unbedingt",
+    "consumes_routes": null,
+    "note": "positive control: fetch replaced, backend never called (run 24212)"
+  },
+  {
+    "file": "g1_override_fallback.html",
+    "label": "mock",
+    "expect": [
+      "fetch_override"
+    ],
+    "mode": "fallback",
+    "consumes_routes": null,
+    "note": "fetch replaced, local answer only when the backend fails"
+  },
+  {
+    "file": "g2_fabricated_in_catch.html",
+    "label": "mock",
+    "expect": [
+      "fabricated_fallback"
+    ],
+    "mode": null,
+    "consumes_routes": null,
+    "note": "catch block picks a random local fact"
+  },
+  {
+    "file": "g2_fabricated_after_catch.html",
+    "label": "mock",
+    "expect": [
+      "fabricated_fallback"
+    ],
+    "mode": null,
+    "consumes_routes": null,
+    "note": "empty catch, random number returned right after it"
+  },
+  {
+    "file": "g2_fabricated_helper.html",
+    "label": "mock",
+    "expect": [
+      "fabricated_fallback"
+    ],
+    "mode": null,
+    "consumes_routes": null,
+    "note": "catch calls getMockCard()"
+  },
+  {
+    "file": "g2_fabricated_via_wrapper.html",
+    "label": "mock",
+    "expect": [
+      "fabricated_fallback"
+    ],
+    "mode": null,
+    "consumes_routes": null,
+    "note": "fetch hidden in apiCall(); caller invents a value when it returns null"
+  },
+  {
+    "file": "trap_offline_badge_1.html",
+    "label": "clean",
+    "expect": [],
+    "mode": null,
+    "consumes_routes": null,
+    "note": "catch only shows an OFFLINE badge"
+  },
+  {
+    "file": "trap_offline_badge_2.html",
+    "label": "clean",
+    "expect": [],
+    "mode": null,
+    "consumes_routes": null,
+    "note": "catch only shows \"Offline\""
+  },
+  {
+    "file": "trap_offline_status.html",
+    "label": "clean",
+    "expect": [],
+    "mode": null,
+    "consumes_routes": null,
+    "note": "catch only switches the status to Offline"
+  },
+  {
+    "file": "trap_mockdatabase_name.html",
+    "label": "clean",
+    "expect": [],
+    "mode": null,
+    "consumes_routes": [
+      "/api/contact"
+    ],
+    "note": "variable named mockDatabase actually holds real backend data"
+  },
+  {
+    "file": "trap_dice_animation_1.html",
+    "label": "clean",
+    "expect": [],
+    "mode": null,
+    "consumes_routes": [
+      "/api/roll"
+    ],
+    "note": "Math.random only inside a setInterval animation"
+  },
+  {
+    "file": "trap_dice_animation_2.html",
+    "label": "clean",
+    "expect": [],
+    "mode": null,
+    "consumes_routes": [
+      "/api/roll"
+    ],
+    "note": "Math.random only inside a setInterval animation"
+  },
+  {
+    "file": "trap_dice_audio_animation.html",
+    "label": "clean",
+    "expect": [],
+    "mode": null,
+    "consumes_routes": null,
+    "note": "Math.random for sound pitch and animation, real error handling"
+  },
+  {
+    "file": "clean_calculator.html",
+    "label": "clean",
+    "expect": [],
+    "mode": null,
+    "consumes_routes": [
+      "/api/calculate"
+    ],
+    "note": "clean app"
+  },
+  {
+    "file": "clean_quote.html",
+    "label": "clean",
+    "expect": [],
+    "mode": null,
+    "consumes_routes": [
+      "/api/quote"
+    ],
+    "note": "clean app"
+  },
+  {
+    "file": "clean_daily_quote.html",
+    "label": "clean",
+    "expect": [],
+    "mode": null,
+    "consumes_routes": [
+      "/api/quote"
+    ],
+    "note": "clean app"
+  },
+  {
+    "file": "route_api_never_called.html",
+    "label": "clean",
+    "expect": [
+      "uncalled_routes"
+    ],
+    "mode": null,
+    "consumes_routes": [
+      "POST /api/v1/generate",
+      "POST /api/v1/evaluate"
+    ],
+    "note": "backend offers /api/v1/generate and /api/v1/evaluate, the page never calls them"
+  }
+]

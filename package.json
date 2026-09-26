@@ -1,0 +1,13 @@
+{
+  "name": "coreforge-cicd-engine",
+  "version": "1.0.0",
+  "description": "Self-hosted multi-agent n8n pipeline that turns a chat request into a deployed, health-checked FastAPI/Tailwind app",
+  "private": true,
+  "license": "MIT",
+  "author": "Marc Powell",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node tests/run_all.js",
+    "check": "node scripts/scan_secrets.js && node scripts/keyword_check.js"
+  }
+}
